@@ -1,0 +1,36 @@
+﻿using Application.Interfaces;
+using Application.Services;
+using Domain.Models;
+using Infra.Context;
+using Infra.ExternalApi.Interfaces;
+using Infra.ExternalApi.Services;
+using Infra.Interfaces;
+using Infra.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Application.Di;
+
+public static class Initializer
+{
+    public static void ConfigureDi(this IServiceCollection services)
+    {
+        // Bd
+        services.AddDbContext<AppDbContext>(o => o.UseSqlite("Data Source = Database"));
+        
+        // Repositories
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IBaseRepository<Stock>, BaseRepository<Stock>>();
+        
+        services.AddScoped<ISectorRepository, SectorRepository>();
+
+        // Services
+        services.AddScoped(typeof(IBaseService<>), typeof(BaseService<>));
+        services.AddScoped<IStockService, StockService>();
+        services.AddScoped<ISectorService, SectorService>();
+        
+        // External Services
+        services.AddScoped<IBovespa, Bovespa>();
+    }
+    
+}
