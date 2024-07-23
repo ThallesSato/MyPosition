@@ -32,4 +32,16 @@ public class Bovespa : IBovespa
         
         return(stock,message);
     }
+    
+    public async Task<decimal?> UpdatePrice(Stock stock)
+    {
+        var response = await _httpClient.GetAsync($"https://mfinance.com.br/api/v1/stocks/{stock.Symbol}");
+        
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var stockDto = await response.Content.ReadFromJsonAsync<StockApiDto>();
+        
+        return stockDto?.LastPrice;
+    }
 }

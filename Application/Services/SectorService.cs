@@ -8,7 +8,7 @@ namespace Application.Services;
 public class SectorService : BaseService<Sector>, ISectorService
 {
     private readonly ISectorRepository _repository;
-    public SectorService(IBaseRepository<Sector> repository, ISectorRepository repository1) : base(repository)
+    public SectorService(ISectorRepository repository, ISectorRepository repository1) : base(repository)
     {
         _repository = repository1;
     }

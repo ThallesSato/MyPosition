@@ -8,5 +8,5 @@ public class Stock : BaseEntity
     public int SectorId { get; set; }
     public decimal LastPrice { get; set; }
     
-    public virtual Sector? Sector { get; set; } 
+    public virtual Sector? Setor { get; set; } 
 }

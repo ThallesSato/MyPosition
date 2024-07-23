@@ -17,7 +17,7 @@ public class StockService : BaseService<Stock>, IStockService
     public async Task<Stock?> CreateStock(StockApiDto stockApiDto, Sector sector)
     {
         var stock = stockApiDto.Adapt<Stock>();
-        stock.Sector = sector;
+        stock.Setor = sector;
         
         return await _repository.CreateAsync(stock);
     }

@@ -20,14 +20,15 @@ public static class Initializer
         
         // Repositories
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-        services.AddScoped<IBaseRepository<Stock>, BaseRepository<Stock>>();
-        
+        services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
         services.AddScoped<ISectorRepository, SectorRepository>();
+        services.AddScoped<IWalletRepository, WalletRepository>();
 
         // Services
         services.AddScoped(typeof(IBaseService<>), typeof(BaseService<>));
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<ISectorService, SectorService>();
+        services.AddScoped<IWalletService, WalletService>();
         
         // External Services
         services.AddScoped<IBovespa, Bovespa>();

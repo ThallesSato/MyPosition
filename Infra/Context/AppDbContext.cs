@@ -17,10 +17,12 @@ public class AppDbContext : DbContext
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Stock>(e =>
-        {
-            e.HasIndex(x => x.Symbol)
-                .IsUnique();
-        });
+        modelBuilder.Entity<Stock>()
+            .HasIndex(x => x.Symbol)
+            .IsUnique();
+
+        modelBuilder.Entity<Positions>()
+            .HasIndex(x => new { x.WalletId, x.StockId })
+            .IsUnique();
     }
 }

@@ -6,4 +6,5 @@ namespace Infra.ExternalApi.Interfaces;
 public interface IBovespa
 { 
     Task<(StockApiDto? stock, string? message)> GetStock(string symbol);
+    Task<decimal?> UpdatePrice(Stock stock);
 }
