@@ -1,6 +1,8 @@
-﻿using Application.Interfaces;
+﻿using Application.Dtos.Input;
+using Application.Interfaces;
 using Domain.Models;
 using Infra.ExternalApi.Interfaces;
+using Mapster;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -12,16 +14,18 @@ public class TesteController : ControllerBase
     private readonly IBovespa _bovespa;
     private readonly IStockService _stockService;
     private readonly ISectorService _sectorService;
-    private readonly IBaseService<Positions> _positionService;
+    private readonly IPositionService _positionService;
+    private readonly IBaseService<TransactionHistory> _transactionService;
     private readonly IWalletService _walletService;
 
-    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IBaseService<Positions> positionService, IWalletService walletService)
+    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService)
     {
         _bovespa = bovespa;
         _stockService = stockService;
         _sectorService = sectorService;
         _positionService = positionService;
         _walletService = walletService;
+        _transactionService = transactionService;
     }
 
     [HttpGet]
@@ -34,33 +38,38 @@ public class TesteController : ControllerBase
                 return NotFound();
 
             decimal totalValue = 0, totalCost = 0;
-            
+
             foreach (var position in wallets.Positions)
             {
-                totalCost += position.Amount * position.Price;
+                if (position.Stock == null)
+                    continue;
+
+                totalCost += position.Amount * position.TotalPrice;
                 totalValue += position.Amount * position.Stock.LastPrice;
             }
-            Console.WriteLine("totalCost: " + totalCost);
-            Console.WriteLine("totalValue: " + totalValue);
-            Console.WriteLine("Lucro: " + (totalValue-totalCost));
-            
-            
+
+            Console.WriteLine("TotalCost: " + totalCost);
+            Console.WriteLine("TotalValue: " + totalValue);
+            Console.WriteLine("Result Value: " + (totalValue - totalCost));
+
+            Console.WriteLine("Result %: " + decimal.Round((totalValue - totalCost) / totalValue * 100, 2));
+
             var sectors = wallets.Positions
                 .Select(position => position.Stock?.Setor?.Name)
                 .Distinct()
                 .ToList();
 
             Console.WriteLine("% por setores");
-            
+
             foreach (var sector in sectors)
             {
                 var totalValueBySector = wallets.Positions
                     .Where(position => position.Stock?.Setor?.Name == sector)
-                    .Sum(position => position.Amount * position.Stock?.LastPrice);
+                    .Sum(position => position.Amount * position.Stock?.LastPrice) ?? 0;
 
-                Console.WriteLine(sector + ": " + (totalValueBySector/totalValue)*100);
+                Console.WriteLine(sector + ": " + decimal.Round(totalValueBySector / totalValue * 100));
             }
-            
+
             return Ok(wallets);
         }
         catch (Exception e)
@@ -68,5 +77,40 @@ public class TesteController : ControllerBase
             Console.WriteLine(e);
             return BadRequest(e.Message);
         }
+    }
+    [HttpPost("BuyStock")]
+    public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
+    {
+        var history = transactionDto.Adapt<TransactionHistory>();
+        await _transactionService.CreateAsync(history);
+        
+        var position = await _positionService.GetOrCreateAsync(history.WalletId, history.StockId);
+        
+        position.Amount += transactionDto.Amount;
+        position.TotalPrice += transactionDto.Amount * transactionDto.Price;
+        
+        _positionService.Put(position);
+        await _unitOfWork.SaveChangesAsync();
+        
+        return Ok(history);
+    }
+    [HttpPost("SellStock")]
+    public async Task<IActionResult> SellStock(TransactionDto transactionDto)
+    {
+        var history = transactionDto.Adapt<TransactionHistory>();
+        await _transactionService.CreateAsync(history);
+        
+        var position = await _positionService.GetOrCreateAsync(history.WalletId, history.StockId);
+        
+        position.Amount -= transactionDto.Amount;
+        position.TotalPrice -= position.TotalPrice/position.Amount * transactionDto.Amount;
+
+        if (position.Amount < 0 || position.TotalPrice < 0)
+            return BadRequest("Invalid amount, ");
+        
+        _positionService.Put(position);
+        await _unitOfWork.SaveChangesAsync();
+        
+        return Ok(history);
     }
 }

@@ -100,7 +100,7 @@ public class DefaultController : ControllerBase
             
             foreach (var position in wallets.Positions)
             {
-                totalCost += position.Amount * position.Price;
+                totalCost += position.Amount * position.TotalPrice;
                 totalValue += position.Amount * position.Stock.LastPrice;
             }
             Console.WriteLine("totalCost: " + totalCost);
@@ -116,7 +116,7 @@ public class DefaultController : ControllerBase
     }
     
     [HttpPost("position")]
-    public async Task<IActionResult> CreatePosition(PositionsDto positionsDto)
+    public async Task<IActionResult> CreatePosition(TransactionDto positionsDto)
     {
         try
         {

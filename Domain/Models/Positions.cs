@@ -7,7 +7,7 @@ public class Positions : BaseEntity
     public int WalletId { get; set; }
     public int StockId { get; set; }
     public int Amount { get; set; }
-    public decimal Price { get; set; }
+    public decimal TotalPrice { get; set; }
     
     [JsonIgnore]
     public virtual Wallet? Wallet { get; set; }

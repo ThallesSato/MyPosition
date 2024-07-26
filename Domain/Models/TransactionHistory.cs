@@ -2,7 +2,7 @@
 
 public class TransactionHistory : BaseEntity
 {
-    public DateTime Date { get; set; }
+    public DateTime Date { get; set; } = DateTime.UtcNow;
     public int Amount { get; set; }
     public int WalletId { get; set; }
     public int StockId { get; set; }
