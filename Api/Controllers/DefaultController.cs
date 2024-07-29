@@ -1,4 +1,6 @@
-﻿using Application.Dtos.Input;
+﻿using System;
+using System.Threading.Tasks;
+using Application.Dtos.Input;
 using Application.Interfaces;
 using Domain.Models;
 using Infra.ExternalApi.Interfaces;
@@ -107,23 +109,6 @@ public class DefaultController : ControllerBase
             Console.WriteLine("totalValue: " + totalValue);
             Console.WriteLine("Lucro: " + (totalValue-totalCost));
             return Ok(wallets);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return BadRequest(e.Message);
-        }
-    }
-    
-    [HttpPost("position")]
-    public async Task<IActionResult> CreatePosition(TransactionDto positionsDto)
-    {
-        try
-        {
-            var positions = positionsDto.Adapt<Positions>();
-            await _positionService.CreateAsync(positions);
-            await _unitOfWork.SaveChangesAsync();
-            return Ok(positions);
         }
         catch (Exception e)
         {

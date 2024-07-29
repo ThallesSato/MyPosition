@@ -26,11 +26,11 @@ namespace Infra.Migrations
                     b.Property<int>("Amount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("StockId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("INTEGER");
@@ -39,7 +39,8 @@ namespace Infra.Migrations
 
                     b.HasIndex("StockId");
 
-                    b.HasIndex("WalletId");
+                    b.HasIndex("WalletId", "StockId")
+                        .IsUnique();
 
                     b.ToTable("Positions");
                 });

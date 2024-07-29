@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infra.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240723185831_new")]
-    partial class @new
+    [Migration("20240729114221_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,11 +29,11 @@ namespace Infra.Migrations
                     b.Property<int>("Amount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("StockId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("WalletId")
                         .HasColumnType("INTEGER");
@@ -42,7 +42,8 @@ namespace Infra.Migrations
 
                     b.HasIndex("StockId");
 
-                    b.HasIndex("WalletId");
+                    b.HasIndex("WalletId", "StockId")
+                        .IsUnique();
 
                     b.ToTable("Positions");
                 });

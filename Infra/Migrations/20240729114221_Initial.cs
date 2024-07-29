@@ -67,7 +67,8 @@ namespace Infra.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     WalletId = table.Column<int>(type: "INTEGER", nullable: false),
                     StockId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Amount = table.Column<int>(type: "INTEGER", nullable: false)
+                    Amount = table.Column<int>(type: "INTEGER", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -95,7 +96,8 @@ namespace Infra.Migrations
                     Date = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Amount = table.Column<int>(type: "INTEGER", nullable: false),
                     WalletId = table.Column<int>(type: "INTEGER", nullable: false),
-                    StockId = table.Column<int>(type: "INTEGER", nullable: false)
+                    StockId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Price = table.Column<decimal>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -120,9 +122,10 @@ namespace Infra.Migrations
                 column: "StockId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Positions_WalletId",
+                name: "IX_Positions_WalletId_StockId",
                 table: "Positions",
-                column: "WalletId");
+                columns: new[] { "WalletId", "StockId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Stocks_SectorId",

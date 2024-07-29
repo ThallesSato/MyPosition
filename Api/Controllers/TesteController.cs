@@ -1,7 +1,11 @@
-﻿using Application.Dtos.Input;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using Application.Dtos.Input;
 using Application.Interfaces;
 using Domain.Models;
 using Infra.ExternalApi.Interfaces;
+using Infra.Interfaces;
 using Mapster;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +15,7 @@ namespace Api.Controllers;
 [ApiController]
 public class TesteController : ControllerBase
 {
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IBovespa _bovespa;
     private readonly IStockService _stockService;
     private readonly ISectorService _sectorService;
@@ -18,7 +23,7 @@ public class TesteController : ControllerBase
     private readonly IBaseService<TransactionHistory> _transactionService;
     private readonly IWalletService _walletService;
 
-    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService)
+    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService, IUnitOfWork unitOfWork)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -26,6 +31,7 @@ public class TesteController : ControllerBase
         _positionService = positionService;
         _walletService = walletService;
         _transactionService = transactionService;
+        _unitOfWork = unitOfWork;
     }
 
     [HttpGet]
@@ -44,7 +50,7 @@ public class TesteController : ControllerBase
                 if (position.Stock == null)
                     continue;
 
-                totalCost += position.Amount * position.TotalPrice;
+                totalCost += position.TotalPrice;
                 totalValue += position.Amount * position.Stock.LastPrice;
             }
 
@@ -52,7 +58,8 @@ public class TesteController : ControllerBase
             Console.WriteLine("TotalValue: " + totalValue);
             Console.WriteLine("Result Value: " + (totalValue - totalCost));
 
-            Console.WriteLine("Result %: " + decimal.Round((totalValue - totalCost) / totalValue * 100, 2));
+            if (totalValue != 0)
+                Console.WriteLine("Result % : " + decimal.Round((totalValue - totalCost) / totalCost * 100, 2));
 
             var sectors = wallets.Positions
                 .Select(position => position.Stock?.Setor?.Name)
@@ -66,8 +73,9 @@ public class TesteController : ControllerBase
                 var totalValueBySector = wallets.Positions
                     .Where(position => position.Stock?.Setor?.Name == sector)
                     .Sum(position => position.Amount * position.Stock?.LastPrice) ?? 0;
-
-                Console.WriteLine(sector + ": " + decimal.Round(totalValueBySector / totalValue * 100));
+                
+                if (totalValue != 0 && totalValueBySector != 0)
+                    Console.WriteLine(sector + " % : " + decimal.Round(totalValueBySector / totalValue * 100));
             }
 
             return Ok(wallets);
@@ -89,10 +97,12 @@ public class TesteController : ControllerBase
         position.Amount += transactionDto.Amount;
         position.TotalPrice += transactionDto.Amount * transactionDto.Price;
         
-        _positionService.Put(position);
+        if (position.Id > 0)
+            _positionService.Put(position);
+        
         await _unitOfWork.SaveChangesAsync();
         
-        return Ok(history);
+        return Ok(position);
     }
     [HttpPost("SellStock")]
     public async Task<IActionResult> SellStock(TransactionDto transactionDto)
@@ -101,9 +111,12 @@ public class TesteController : ControllerBase
         await _transactionService.CreateAsync(history);
         
         var position = await _positionService.GetOrCreateAsync(history.WalletId, history.StockId);
-        
-        position.Amount -= transactionDto.Amount;
-        position.TotalPrice -= position.TotalPrice/position.Amount * transactionDto.Amount;
+
+        if (position.Amount != 0)
+        {
+            position.TotalPrice -= position.TotalPrice/position.Amount * transactionDto.Amount;
+            position.Amount -= transactionDto.Amount;
+        }
 
         if (position.Amount < 0 || position.TotalPrice < 0)
             return BadRequest("Invalid amount, ");
