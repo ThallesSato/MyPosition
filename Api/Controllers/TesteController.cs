@@ -22,8 +22,9 @@ public class TesteController : ControllerBase
     private readonly IPositionService _positionService;
     private readonly IBaseService<TransactionHistory> _transactionService;
     private readonly IWalletService _walletService;
+    private readonly IStockHistoryService _stockHistoryService;
 
-    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService, IUnitOfWork unitOfWork)
+    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService, IUnitOfWork unitOfWork, IStockHistoryService stockHistoryService)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -32,6 +33,7 @@ public class TesteController : ControllerBase
         _walletService = walletService;
         _transactionService = transactionService;
         _unitOfWork = unitOfWork;
+        _stockHistoryService = stockHistoryService;
     }
 
     [HttpGet]
@@ -86,6 +88,7 @@ public class TesteController : ControllerBase
             return BadRequest(e.Message);
         }
     }
+    
     [HttpPost("BuyStock")]
     public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
     {
@@ -104,6 +107,7 @@ public class TesteController : ControllerBase
         
         return Ok(position);
     }
+    
     [HttpPost("SellStock")]
     public async Task<IActionResult> SellStock(TransactionDto transactionDto)
     {
@@ -125,5 +129,16 @@ public class TesteController : ControllerBase
         await _unitOfWork.SaveChangesAsync();
         
         return Ok(history);
+    }
+
+    [HttpGet("teste")]
+    public async Task<IActionResult> Testeinfra(int id, DateTime data)
+    {
+        var stock = await _stockService.GetByIdOrDefaultAsync(id);
+        if (stock == null)
+            return NotFound();
+        var result = await _stockHistoryService.GetStockHistoryListOrCreateAllAsync(stock, data);
+
+        return Ok(result);
     }
 }

@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Positions> Positions { get; set; }
     public DbSet<TransactionHistory> TransactionHistories { get; set; }
     public DbSet<Sector> Sectors { get; set; }
+    public DbSet<StockHistory> StockHistories { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,6 +24,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Positions>()
             .HasIndex(x => new { x.WalletId, x.StockId })
+            .IsUnique();
+
+        modelBuilder.Entity<StockHistory>()
+            .HasIndex(x => new { x.StockId, x.Date })
             .IsUnique();
     }
 }

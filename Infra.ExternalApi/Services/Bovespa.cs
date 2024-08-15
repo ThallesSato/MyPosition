@@ -44,4 +44,25 @@ public class Bovespa : IBovespa
         
         return stockDto?.LastPrice;
     }
+
+    public async Task<List<StockHistory>?> GetStockHistory(Stock stock, DateTime date)
+    {
+        var months = (DateTime.Now.Month - date.Month) + 1;
+        var response = await _httpClient.GetAsync($"https://mfinance.com.br/api/v1/stocks/historicals/{stock.Symbol}?months={months}");
+        
+        if (!response.IsSuccessStatusCode)
+            return null;
+        
+        var stockHistoryDto = await response.Content.ReadFromJsonAsync<StockHistoryDto>();
+
+        if (stockHistoryDto?.Historicals == null)
+            return null;
+        
+        foreach (var history in stockHistoryDto.Historicals)
+        {
+            history.StockId = stock.Id;
+        }
+
+        return stockHistoryDto.Historicals;
+    }
 }

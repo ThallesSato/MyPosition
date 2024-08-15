@@ -9,4 +9,5 @@ public class Stock : BaseEntity
     public decimal LastPrice { get; set; }
     
     public virtual Sector? Setor { get; set; } 
+    public virtual List<StockHistory>? Historicals { get; set; } 
 }
