@@ -7,6 +7,7 @@ public class TransactionHistory : BaseEntity
     public int WalletId { get; set; }
     public int StockId { get; set; }
     public decimal Price { get; set; }
+    public decimal EquityEffect { get; set; }
     
     public virtual Wallet? Wallet { get; set; }
     public virtual Stock? Stock { get; set; }

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infra.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240813124620_new")]
-    partial class @new
+    [Migration("20240823184834_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -103,6 +103,7 @@ namespace Infra.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Symbol")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -148,6 +149,9 @@ namespace Infra.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("EquityEffect")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Price")

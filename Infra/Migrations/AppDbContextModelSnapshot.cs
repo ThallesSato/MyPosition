@@ -100,6 +100,7 @@ namespace Infra.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Symbol")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -145,6 +146,9 @@ namespace Infra.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("EquityEffect")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Price")

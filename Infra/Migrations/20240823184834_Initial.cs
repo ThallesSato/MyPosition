@@ -43,7 +43,7 @@ namespace Infra.Migrations
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
-                    Symbol = table.Column<string>(type: "TEXT", nullable: true),
+                    Symbol = table.Column<string>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", nullable: true),
                     SectorId = table.Column<int>(type: "INTEGER", nullable: false),
                     LastPrice = table.Column<decimal>(type: "TEXT", nullable: false)
@@ -88,6 +88,27 @@ namespace Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "StockHistories",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Date = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Close = table.Column<decimal>(type: "TEXT", nullable: false),
+                    StockId = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StockHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_StockHistories_Stocks_StockId",
+                        column: x => x.StockId,
+                        principalTable: "Stocks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TransactionHistories",
                 columns: table => new
                 {
@@ -97,7 +118,8 @@ namespace Infra.Migrations
                     Amount = table.Column<int>(type: "INTEGER", nullable: false),
                     WalletId = table.Column<int>(type: "INTEGER", nullable: false),
                     StockId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Price = table.Column<decimal>(type: "TEXT", nullable: false)
+                    Price = table.Column<decimal>(type: "TEXT", nullable: false),
+                    EquityEffect = table.Column<decimal>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -116,6 +138,33 @@ namespace Infra.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "PositionHistory",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Date = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Amount = table.Column<int>(type: "INTEGER", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "TEXT", nullable: false),
+                    PositionId = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PositionHistory", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PositionHistory_Positions_PositionId",
+                        column: x => x.PositionId,
+                        principalTable: "Positions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PositionHistory_PositionId",
+                table: "PositionHistory",
+                column: "PositionId");
+
             migrationBuilder.CreateIndex(
                 name: "IX_Positions_StockId",
                 table: "Positions",
@@ -125,6 +174,12 @@ namespace Infra.Migrations
                 name: "IX_Positions_WalletId_StockId",
                 table: "Positions",
                 columns: new[] { "WalletId", "StockId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_StockHistories_StockId_Date",
+                table: "StockHistories",
+                columns: new[] { "StockId", "Date" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -153,10 +208,16 @@ namespace Infra.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Positions");
+                name: "PositionHistory");
+
+            migrationBuilder.DropTable(
+                name: "StockHistories");
 
             migrationBuilder.DropTable(
                 name: "TransactionHistories");
+
+            migrationBuilder.DropTable(
+                name: "Positions");
 
             migrationBuilder.DropTable(
                 name: "Stocks");

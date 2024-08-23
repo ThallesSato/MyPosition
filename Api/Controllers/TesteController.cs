@@ -1,12 +1,8 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Application.Dtos.Input;
+﻿using System.Globalization;
+using Application.Dtos.Output;
 using Application.Interfaces;
-using Domain.Models;
 using Infra.ExternalApi.Interfaces;
 using Infra.Interfaces;
-using Mapster;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -20,11 +16,12 @@ public class TesteController : ControllerBase
     private readonly IStockService _stockService;
     private readonly ISectorService _sectorService;
     private readonly IPositionService _positionService;
-    private readonly IBaseService<TransactionHistory> _transactionService;
+    private readonly ITransactionHistoryService _transactionService;
     private readonly IWalletService _walletService;
     private readonly IStockHistoryService _stockHistoryService;
+    private readonly IBacen _bacen;
 
-    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, IBaseService<TransactionHistory> transactionService, IUnitOfWork unitOfWork, IStockHistoryService stockHistoryService)
+    public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, ITransactionHistoryService transactionService, IUnitOfWork unitOfWork, IStockHistoryService stockHistoryService, IBacen bacen)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -34,6 +31,7 @@ public class TesteController : ControllerBase
         _transactionService = transactionService;
         _unitOfWork = unitOfWork;
         _stockHistoryService = stockHistoryService;
+        _bacen = bacen;
     }
 
     [HttpGet]
@@ -49,19 +47,25 @@ public class TesteController : ControllerBase
 
             foreach (var position in wallets.Positions)
             {
-                if (position.Stock == null)
-                    continue;
-
                 totalCost += position.TotalPrice;
                 totalValue += position.Amount * position.Stock.LastPrice;
             }
 
+            var result = new TotalDto()
+            {
+                TotalCost = totalCost,
+                TotalValue = totalValue,
+                ResultValue = totalValue - totalCost,
+            };
             Console.WriteLine("TotalCost: " + totalCost);
             Console.WriteLine("TotalValue: " + totalValue);
             Console.WriteLine("Result Value: " + (totalValue - totalCost));
 
             if (totalValue != 0)
+            {
                 Console.WriteLine("Result % : " + decimal.Round((totalValue - totalCost) / totalCost * 100, 2));
+                result.ResultPercentage = decimal.Round((totalValue - totalCost) / totalCost * 100, 2);
+            }
 
             var sectors = wallets.Positions
                 .Select(position => position.Stock?.Setor?.Name)
@@ -72,63 +76,27 @@ public class TesteController : ControllerBase
 
             foreach (var sector in sectors)
             {
+                if (sector == null)
+                    continue;
+                
                 var totalValueBySector = wallets.Positions
-                    .Where(position => position.Stock?.Setor?.Name == sector)
+                    .Where(position => position.Stock.Setor?.Name == sector)
                     .Sum(position => position.Amount * position.Stock?.LastPrice) ?? 0;
                 
-                if (totalValue != 0 && totalValueBySector != 0)
+                if (totalValue != 0 && totalValueBySector != 0){
                     Console.WriteLine(sector + " % : " + decimal.Round(totalValueBySector / totalValue * 100));
+
+                    result.PercentagePerSectors.Add(sector, decimal.Round(totalValueBySector / totalValue * 100));
+                }
             }
 
-            return Ok(wallets);
+            return Ok(result);
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
             return BadRequest(e.Message);
         }
-    }
-    
-    [HttpPost("BuyStock")]
-    public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
-    {
-        var history = transactionDto.Adapt<TransactionHistory>();
-        await _transactionService.CreateAsync(history);
-        
-        var position = await _positionService.GetOrCreateAsync(history.WalletId, history.StockId);
-        
-        position.Amount += transactionDto.Amount;
-        position.TotalPrice += transactionDto.Amount * transactionDto.Price;
-        
-        if (position.Id > 0)
-            _positionService.Put(position);
-        
-        await _unitOfWork.SaveChangesAsync();
-        
-        return Ok(position);
-    }
-    
-    [HttpPost("SellStock")]
-    public async Task<IActionResult> SellStock(TransactionDto transactionDto)
-    {
-        var history = transactionDto.Adapt<TransactionHistory>();
-        await _transactionService.CreateAsync(history);
-        
-        var position = await _positionService.GetOrCreateAsync(history.WalletId, history.StockId);
-
-        if (position.Amount != 0)
-        {
-            position.TotalPrice -= position.TotalPrice/position.Amount * transactionDto.Amount;
-            position.Amount -= transactionDto.Amount;
-        }
-
-        if (position.Amount < 0 || position.TotalPrice < 0)
-            return BadRequest("Invalid amount, ");
-        
-        _positionService.Put(position);
-        await _unitOfWork.SaveChangesAsync();
-        
-        return Ok(history);
     }
 
     [HttpGet("teste")]
@@ -140,5 +108,47 @@ public class TesteController : ControllerBase
         var result = await _stockHistoryService.GetStockHistoryListOrCreateAllAsync(stock, data);
 
         return Ok(result);
+    }
+
+    [HttpGet("cdi")]
+    public async Task<IActionResult> TesteCdi(int id)
+    {
+        var wallets = await _walletService.GetByIdOrDefaultAsync(id);
+        if (wallets == null)
+            return NotFound();
+
+        var lista = await _transactionService.GetTotalAmountByDateAsync(id);
+        
+        
+        double total = 0;
+        double tds = 0;
+        var lucrosAcumulados = new List<decimal>();
+        if (lista != null && lista.Count > 0)
+        {
+            var juros = await _bacen.GetInterestsSinceDate(lista.First().Date);
+            
+            if (juros == null || juros.Count == 0)
+                return BadRequest("Try again later");
+            
+            foreach (var juro in juros)
+            {
+                
+                var position = lista.FirstOrDefault(x => x.Date.Day <= juro.date.Day);
+                if (position != null)
+                {
+                    total += Convert.ToDouble(position.Amount);
+                    tds += Convert.ToDouble(position.Amount);
+                    lista.Remove(position);
+                }
+
+                var teste = Convert.ToDouble(juro.Item2, CultureInfo.InvariantCulture);
+                total *= (1 + teste / 100);
+
+                lucrosAcumulados.Add(decimal.Round(Convert.ToDecimal(total - tds),2));
+            }
+            
+        }
+
+        return Ok(lucrosAcumulados);
     }
 }

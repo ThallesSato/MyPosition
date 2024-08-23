@@ -8,8 +8,8 @@ namespace Application.Services;
 
 public class StockService : BaseService<Stock>, IStockService
 {
-    private readonly IBaseRepository<Stock> _repository;
-    public StockService(IBaseRepository<Stock> repository) : base(repository)
+    private readonly IStockRepository _repository;
+    public StockService(IStockRepository repository) : base(repository)
     {
         _repository = repository;
     }
@@ -20,5 +20,10 @@ public class StockService : BaseService<Stock>, IStockService
         stock.Setor = sector;
         
         return await _repository.CreateAsync(stock);
+    }
+    
+    public async Task<Stock?> GetStockBySymbolOrDefaultAsync(string symbol)
+    {
+        return await _repository.GetStockBySymbolOrDefaultAsync(symbol);
     }
 }

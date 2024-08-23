@@ -6,4 +6,5 @@ namespace Application.Interfaces;
 public interface IStockService : IBaseService<Stock>
 {
     Task<Stock?> CreateStock(StockApiDto stockApiDto, Sector sector);
+    Task<Stock?> GetStockBySymbolOrDefaultAsync(string symbol);
 }

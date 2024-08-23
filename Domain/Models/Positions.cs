@@ -11,6 +11,7 @@ public class Positions : BaseEntity
     
     [JsonIgnore]
     public virtual Wallet? Wallet { get; set; }
-    public virtual Stock? Stock { get; set; }
+
+    public virtual Stock Stock { get; set; } = new();
     public virtual List<PositionHistory>? PositionHistories { get; set; }
 }

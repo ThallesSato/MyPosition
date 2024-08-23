@@ -13,7 +13,7 @@ public class PositionRepository : BaseRepository<Positions>, IPositionRepository
         _context = context.Positions;
     }
 
-    public Task<Positions?> GetByWalletAndStockAsync(int walletId, int stockId)
+    public Task<Positions?> GetByWalletAndStockOrDefaultAsync(int walletId, int stockId)
     {
         return _context.FirstOrDefaultAsync(x => x.WalletId == walletId && x.StockId == stockId);
     }

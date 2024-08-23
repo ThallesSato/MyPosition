@@ -12,16 +12,10 @@ public class PositionService : BaseService<Positions>, IPositionService
         _repository = repository;
     }
 
-    public async Task<Positions> GetOrCreateAsync(int walletId, int stockId)
+    public async Task<Positions?> GetPositionByWalletAndStockOrDefaultAsync(int walletId, int stockId)
     {
-        var position = await _repository.GetByWalletAndStockAsync(walletId, stockId);
-        if (position != null)
-            return position;
+        var position = await _repository.GetByWalletAndStockOrDefaultAsync(walletId, stockId);
+        return position;
         
-        return await _repository.CreateAsync(new Positions
-        {
-            WalletId = walletId,
-            StockId = stockId
-        });
     }
 }

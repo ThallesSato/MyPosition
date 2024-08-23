@@ -1,6 +1,5 @@
 ﻿using Application.Interfaces;
 using Application.Services;
-using Domain.Models;
 using Infra.Context;
 using Infra.ExternalApi.Interfaces;
 using Infra.ExternalApi.Services;
@@ -25,6 +24,8 @@ public static class Initializer
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IPositionRepository, PositionRepository>();
         services.AddScoped<IStockHistoryRepository, StockHistoryRepository>();
+        services.AddScoped<ITransactionHistoryRepository, TransactionHistoryRepository>();
+        services.AddScoped<IStockRepository, StockRepository>();
 
         // Services
         services.AddScoped(typeof(IBaseService<>), typeof(BaseService<>));
@@ -33,9 +34,11 @@ public static class Initializer
         services.AddScoped<IWalletService, WalletService>();
         services.AddScoped<IPositionService, PositionService>();
         services.AddScoped<IStockHistoryService, StockHistoryService>();
+        services.AddScoped<ITransactionHistoryService, TransactionHistoryService>();
         
         // External Services
         services.AddScoped<IBovespa, Bovespa>();
+        services.AddScoped<IBacen, Bacen>();
     }
     
 }
