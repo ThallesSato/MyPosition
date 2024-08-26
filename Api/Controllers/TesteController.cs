@@ -39,6 +39,8 @@ public class TesteController : ControllerBase
     {
         try
         {
+            await _stockService.UpdateAllStocksAsync();
+            
             var wallets = await _walletService.GetByIdOrDefaultAsync(id);
             if (wallets == null)
                 return NotFound();
@@ -56,23 +58,16 @@ public class TesteController : ControllerBase
                 TotalCost = totalCost,
                 TotalValue = totalValue,
                 ResultValue = totalValue - totalCost,
+                Wallet = wallets
             };
-            Console.WriteLine("TotalCost: " + totalCost);
-            Console.WriteLine("TotalValue: " + totalValue);
-            Console.WriteLine("Result Value: " + (totalValue - totalCost));
 
             if (totalValue != 0)
-            {
-                Console.WriteLine("Result % : " + decimal.Round((totalValue - totalCost) / totalCost * 100, 2));
                 result.ResultPercentage = decimal.Round((totalValue - totalCost) / totalCost * 100, 2);
-            }
 
             var sectors = wallets.Positions
                 .Select(position => position.Stock?.Setor?.Name)
                 .Distinct()
                 .ToList();
-
-            Console.WriteLine("% por setores");
 
             foreach (var sector in sectors)
             {
@@ -83,13 +78,10 @@ public class TesteController : ControllerBase
                     .Where(position => position.Stock.Setor?.Name == sector)
                     .Sum(position => position.Amount * position.Stock?.LastPrice) ?? 0;
                 
-                if (totalValue != 0 && totalValueBySector != 0){
-                    Console.WriteLine(sector + " % : " + decimal.Round(totalValueBySector / totalValue * 100));
-
+                if (totalValue != 0 && totalValueBySector != 0)
                     result.PercentagePerSectors.Add(sector, decimal.Round(totalValueBySector / totalValue * 100));
-                }
             }
-
+            result.PercentagePerSectors = result.PercentagePerSectors.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
             return Ok(result);
         }
         catch (Exception e)
@@ -111,44 +103,99 @@ public class TesteController : ControllerBase
     }
 
     [HttpGet("cdi")]
-    public async Task<IActionResult> TesteCdi(int id)
+    public async Task<IActionResult> TesteCdi(int walletId)
     {
-        var wallets = await _walletService.GetByIdOrDefaultAsync(id);
-        if (wallets == null)
+        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+        if (wallet == null)
             return NotFound();
 
-        var lista = await _transactionService.GetTotalAmountByDateAsync(id);
+        var positions = await _transactionService.GetTotalAmountByDateAsync(walletId);
         
         
         double total = 0;
         double tds = 0;
-        var lucrosAcumulados = new List<decimal>();
-        if (lista != null && lista.Count > 0)
+        var lucrosAcumulados = new Dictionary<DateTime, decimal>();
+        if (positions != null && positions.Count > 0)
         {
-            var juros = await _bacen.GetInterestsSinceDate(lista.First().Date);
+            var interestsSinceDate = await _bacen.GetInterestsSinceDate(positions.First().Date);
             
-            if (juros == null || juros.Count == 0)
+            if (interestsSinceDate == null || interestsSinceDate.Count == 0)
                 return BadRequest("Try again later");
             
-            foreach (var juro in juros)
+            foreach (var interest in interestsSinceDate)
             {
                 
-                var position = lista.FirstOrDefault(x => x.Date.Day <= juro.date.Day);
+                var position = positions.FirstOrDefault(x => x.Date.Day <= interest.date.Day);
                 if (position != null)
                 {
                     total += Convert.ToDouble(position.Amount);
                     tds += Convert.ToDouble(position.Amount);
-                    lista.Remove(position);
+                    positions.Remove(position);
                 }
 
-                var teste = Convert.ToDouble(juro.Item2, CultureInfo.InvariantCulture);
+                var teste = Convert.ToDouble(interest.interest, CultureInfo.InvariantCulture);
                 total *= (1 + teste / 100);
 
-                lucrosAcumulados.Add(decimal.Round(Convert.ToDecimal(total - tds),2));
+                lucrosAcumulados.Add(interest.date.Date,decimal.Round(Convert.ToDecimal(total - tds),2));
             }
             
         }
 
         return Ok(lucrosAcumulados);
+    }
+
+    [HttpGet("variation")]
+    public async Task<IActionResult> TesteVariation(int walletId)
+    {
+        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+        if (wallet == null)
+            return NotFound();
+        var result = new Dictionary<DateTime, decimal>();
+        var teste = await _transactionService.GetAllByWalletIdAsync(walletId);
+        if (teste == null || teste.Count == 0)
+            return BadRequest("You dont have any transactions");
+        foreach (var temp in teste)
+        {
+            var positions = temp
+                .GroupBy(x => x.Date)
+                .OrderBy(x=>x.Key)
+                .Select(g=>new
+                {
+                    Date = g.Key,
+                    Amount = g.Sum(x => x.Amount),
+                    Cost = g.Sum(x=>x.Price * x.Amount),
+                    g.First().Stock
+                })
+                .ToList();
+            var first = positions.First();
+            var history = await _bovespa.GetStockHistory(first.Stock, first.Date);
+            if (history == null || history.Count == 0)
+                continue;
+            var qnt = 0;
+            decimal cost = 0;
+            foreach (var stock in history)
+            {
+                var t = positions.FirstOrDefault(x => x.Date.Date == stock.Date.Date);
+                if (t != null)
+                {
+                    qnt += t.Amount;
+                    cost += t.Cost;
+                }
+                
+                if (qnt == 0)
+                    continue;
+
+                if (result.ContainsKey(stock.Date.Date))
+                {
+                    result[stock.Date.Date] += (stock.Close * qnt)-cost;
+                }
+                else
+                {
+                    result.Add(stock.Date.Date, (stock.Close * qnt)-cost);
+                }
+            }
+        }
+        result = result.OrderBy(x=>x.Key).ToDictionary();
+        return Ok(result);
     }
 }

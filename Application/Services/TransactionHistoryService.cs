@@ -1,6 +1,6 @@
-﻿using Application.Dtos.Internal;
-using Application.Interfaces;
+﻿using Application.Interfaces;
 using Domain.Models;
+using Infra.Dtos.Internal;
 using Infra.Interfaces;
 
 namespace Application.Services;
@@ -16,5 +16,10 @@ public class TransactionHistoryService : BaseService<TransactionHistory>, ITrans
     public async Task<List<TotalAmount>?> GetTotalAmountByDateAsync(int walletId)
     {
         return await _repository.GetTotalAmountByDateAsync(walletId);
+    }
+
+    public Task<List<IGrouping<int, TransactionHistory>>?> GetAllByWalletIdAsync(int walletId)
+    {
+        return _repository.GetAllByWalletIdAsync(walletId);
     }
 }

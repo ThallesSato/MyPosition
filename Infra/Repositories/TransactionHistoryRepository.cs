@@ -1,6 +1,6 @@
-﻿using Application.Dtos.Internal;
-using Domain.Models;
+﻿using Domain.Models;
 using Infra.Context;
+using Infra.Dtos.Internal;
 using Infra.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +27,16 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
                 Date = g.Key,
                 Amount = g.Sum(x => (double)x.EquityEffect)
             })
+            .ToListAsync();
+    }
+
+    public async Task<List<IGrouping<int,TransactionHistory>>?> GetAllByWalletIdAsync(int walletId)
+    {
+        return await _context
+            .TransactionHistories
+            .Where(x => x.WalletId == walletId)
+            .OrderBy(x => x.Date)
+            .GroupBy(x => x.StockId)
             .ToListAsync();
     }
 }

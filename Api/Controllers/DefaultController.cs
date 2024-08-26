@@ -32,7 +32,7 @@ public class DefaultController : ControllerBase
         _positionService = positionService;
     }
     
-    [HttpPost("wallet")]
+    [HttpPost("CreateWallet")]
     public async Task<IActionResult> CreateWallet(string name)
     {
         try
@@ -44,34 +44,6 @@ public class DefaultController : ControllerBase
             await _walletService.CreateAsync(wallet);
             await _unitOfWork.SaveChangesAsync();
             return Ok(wallet);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return BadRequest(e.Message);
-        }
-    }
-    
-    [HttpGet("walletId")]
-    public async Task<IActionResult> GetWallet(int id)
-    {
-        try
-        {
-            var wallets = await _walletService.GetByIdOrDefaultAsync(id);
-            if (wallets == null)
-                return NotFound();
-
-            decimal totalValue = 0, totalCost = 0;
-            
-            foreach (var position in wallets.Positions)
-            {
-                totalCost += position.Amount * position.TotalPrice;
-                totalValue += position.Amount * position.Stock.LastPrice;
-            }
-            Console.WriteLine("totalCost: " + totalCost);
-            Console.WriteLine("totalValue: " + totalValue);
-            Console.WriteLine("Lucro: " + (totalValue-totalCost));
-            return Ok(wallets);
         }
         catch (Exception e)
         {
@@ -98,7 +70,7 @@ public class DefaultController : ControllerBase
                     return BadRequest(message);
 
                 var sector = await _sectorService.GetOrCreateSectorAsync(stockDto.Sector);
-                stock = await _stockService.CreateStock(stockDto, sector);
+                stock = await _stockService.CreateStockAsync(stockDto, sector);
                 if (stock == null)
                     return BadRequest("Cannot create stock, try again");
             }
@@ -125,6 +97,8 @@ public class DefaultController : ControllerBase
             else
                 await _positionService.CreateAsync(position);
 
+            // TODO Inserir codigo para o positionhistory
+            
             await _unitOfWork.SaveChangesAsync();
 
             return Ok(position);
@@ -170,30 +144,12 @@ public class DefaultController : ControllerBase
                 return BadRequest("Invalid amount, ");
 
             _positionService.Put(position);
+            
+            // TODO Inserir codigo para o positionhistory
+            
             await _unitOfWork.SaveChangesAsync();
 
             return Ok(history);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return BadRequest(e.Message);
-        }
-    }
-    
-    [HttpPost("UpdateStocks")]
-    public async Task<IActionResult> UpdateAllStocks()
-    {
-        try
-        {
-            var stocks = await _stockService.GetAllAsync();
-            foreach (var stock in stocks)
-            {   
-                stock.LastPrice = await _bovespa.UpdatePrice(stock) ?? stock.LastPrice;
-                _stockService.Put(stock);
-            }
-            await _unitOfWork.SaveChangesAsync();
-            return Ok();
         }
         catch (Exception e)
         {

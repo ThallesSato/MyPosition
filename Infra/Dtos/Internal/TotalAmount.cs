@@ -1,4 +1,4 @@
-﻿namespace Application.Dtos.Internal;
+﻿namespace Infra.Dtos.Internal;
 
 public class TotalAmount
 {

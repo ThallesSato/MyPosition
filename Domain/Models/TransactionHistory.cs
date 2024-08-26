@@ -10,5 +10,5 @@ public class TransactionHistory : BaseEntity
     public decimal EquityEffect { get; set; }
     
     public virtual Wallet? Wallet { get; set; }
-    public virtual Stock? Stock { get; set; }
+    public virtual Stock Stock { get; set; } = new();
 }
