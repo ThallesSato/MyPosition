@@ -7,14 +7,14 @@ namespace Infra.Repositories;
 
 public class StockRepository : BaseRepository<Stock>, IStockRepository
 {
-    private readonly AppDbContext _context;
+    private readonly DbSet<Stock> _context;
     public StockRepository(AppDbContext context) : base(context)
     {
-        _context = context;
+        _context = context.Stocks;
     }
 
     public async Task<Stock?> GetStockBySymbolOrDefaultAsync(string symbol)
     {
-        return await _context.Stocks.FirstOrDefaultAsync(x => x.Symbol.ToLower() == symbol.ToLower());
+        return await _context.FirstOrDefaultAsync(x => x.Symbol.ToLower() == symbol.ToLower());
     }
 }

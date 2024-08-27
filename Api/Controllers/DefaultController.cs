@@ -71,23 +71,20 @@ public class DefaultController : ControllerBase
 
                 var sector = await _sectorService.GetOrCreateSectorAsync(stockDto.Sector);
                 stock = await _stockService.CreateStockAsync(stockDto, sector);
+                
                 if (stock == null)
                     return BadRequest("Cannot create stock, try again");
             }
 
             var history = transactionDto.Adapt<TransactionHistory>();
+            
             history.Stock = stock;
             history.EquityEffect = transactionDto.Amount * transactionDto.Price;
+            
             await _transactionService.CreateAsync(history);
 
-            var position =
-                await _positionService
-                    .GetPositionByWalletAndStockOrDefaultAsync(history.WalletId, history.StockId) ??
-                new Positions
-                {
-                    WalletId = history.WalletId,
-                    Stock = stock
-                };
+            // Get a existing position or create a new one
+            var position = await _positionService.GetPositionByWalletAndStockOrCreateAsync(history, stock);
 
             position.Amount += transactionDto.Amount;
             position.TotalPrice += transactionDto.Amount * transactionDto.Price;
@@ -109,7 +106,7 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-    
+
     [HttpPost("SellStock")]
     public async Task<IActionResult> SellStock(TransactionDto transactionDto)
     {
@@ -157,4 +154,5 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
+    
 }

@@ -18,4 +18,16 @@ public class PositionService : BaseService<Positions>, IPositionService
         return position;
         
     }
+
+    public async Task<Positions> GetPositionByWalletAndStockOrCreateAsync(TransactionHistory history, Stock stock)
+    {
+        var position =
+            await GetPositionByWalletAndStockOrDefaultAsync(history.WalletId, history.StockId) ??
+            new Positions
+            {
+                WalletId = history.WalletId,
+                Stock = stock
+            };
+        return position;
+    }
 }

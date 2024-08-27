@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<TransactionHistory> TransactionHistories { get; set; }
     public DbSet<Sector> Sectors { get; set; }
     public DbSet<StockHistory> StockHistories { get; set; }
+    public DbSet<PositionHistory> PositionHistories { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

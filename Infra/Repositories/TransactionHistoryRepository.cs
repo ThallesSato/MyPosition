@@ -8,17 +8,16 @@ namespace Infra.Repositories;
 
 public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, ITransactionHistoryRepository 
 {
-    private readonly AppDbContext _context;
+    private readonly DbSet<TransactionHistory> _context;
     
     public TransactionHistoryRepository(AppDbContext context) : base(context)
     {
-        _context = context;
+        _context = context.TransactionHistories;
     }
 
     public async Task<List<TotalAmount>?> GetTotalAmountByDateAsync(int walletId)
     {
         return await _context
-            .TransactionHistories
             .Where(x => x.WalletId == walletId)
             .GroupBy(x => x.Date)
             .OrderBy(x => x.Key)
@@ -33,7 +32,6 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
     public async Task<List<IGrouping<int,TransactionHistory>>?> GetAllByWalletIdAsync(int walletId)
     {
         return await _context
-            .TransactionHistories
             .Where(x => x.WalletId == walletId)
             .OrderBy(x => x.Date)
             .GroupBy(x => x.StockId)

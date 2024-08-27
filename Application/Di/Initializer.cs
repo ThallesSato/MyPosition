@@ -26,6 +26,7 @@ public static class Initializer
         services.AddScoped<IStockHistoryRepository, StockHistoryRepository>();
         services.AddScoped<ITransactionHistoryRepository, TransactionHistoryRepository>();
         services.AddScoped<IStockRepository, StockRepository>();
+        services.AddScoped<IPositionHistoryRepository, PositionHistoryRepository>();
 
         // Services
         services.AddScoped(typeof(IBaseService<>), typeof(BaseService<>));
@@ -35,6 +36,7 @@ public static class Initializer
         services.AddScoped<IPositionService, PositionService>();
         services.AddScoped<IStockHistoryService, StockHistoryService>();
         services.AddScoped<ITransactionHistoryService, TransactionHistoryService>();
+        services.AddScoped<IPositionHistoryService, PositionHistoryService>();
         
         // External Services
         services.AddScoped<IBovespa, Bovespa>();

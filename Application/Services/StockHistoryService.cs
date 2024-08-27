@@ -36,7 +36,6 @@ public class StockHistoryService : BaseService<StockHistory>, IStockHistoryServi
         }
         return stockHistory;
     }
-
     public async Task<StockHistory?> GenerateStockHistoryForDateAsync(Stock stock, DateTime date)
     {
         StockHistory? stockHistory = null;
