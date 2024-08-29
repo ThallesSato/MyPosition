@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infra.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240823184834_Initial")]
+    [Migration("20240829141422_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -42,7 +42,7 @@ namespace Infra.Migrations
 
                     b.HasIndex("PositionId");
 
-                    b.ToTable("PositionHistory");
+                    b.ToTable("PositionHistories");
                 });
 
             modelBuilder.Entity("Domain.Models.Positions", b =>

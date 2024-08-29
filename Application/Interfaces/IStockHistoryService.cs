@@ -4,7 +4,11 @@ namespace Application.Interfaces;
 
 public interface IStockHistoryService : IBaseService<StockHistory>
 {
-    Task<StockHistory?> GetStockHistoryOrCreateAllAsync(Stock stock, DateTime date);
-    Task<StockHistory?> GenerateStockHistoryForDateAsync(Stock stock, DateTime date);
-    Task<List<StockHistory>?> GetStockHistoryListOrCreateAllAsync(Stock stock, DateTime date);
+    /// <summary>
+    /// Get stock history from service and update, or get from database
+    /// </summary>
+    /// <param name="stock">The stock to retrieve history for.</param>
+    /// <param name="date">The date to retrieve history newer than.</param>
+    /// <returns>A list of stock history entries that are newer than the specified date.</returns>
+    Task<List<StockHistory>> GetStockHistoryList(Stock stock, DateTime date);
 }

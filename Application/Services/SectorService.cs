@@ -1,6 +1,5 @@
 ﻿using Application.Interfaces;
 using Domain.Models;
-using Infra.Context;
 using Infra.Interfaces;
 
 namespace Application.Services;

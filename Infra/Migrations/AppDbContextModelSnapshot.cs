@@ -39,7 +39,7 @@ namespace Infra.Migrations
 
                     b.HasIndex("PositionId");
 
-                    b.ToTable("PositionHistory");
+                    b.ToTable("PositionHistories");
                 });
 
             modelBuilder.Entity("Domain.Models.Positions", b =>

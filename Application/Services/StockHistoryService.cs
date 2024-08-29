@@ -15,46 +15,17 @@ public class StockHistoryService : BaseService<StockHistory>, IStockHistoryServi
         _bovespa = bovespa;
     }
     
-    public async Task<List<StockHistory>?> GetStockHistoryListOrCreateAllAsync(Stock stock, DateTime date)
+    public async Task<List<StockHistory>> GetStockHistoryList(Stock stock, DateTime date)
     {
-        var stockHistory = await _repository.GetStockHistoryOrDefaultAsync(stock.Id, date);
-        if (stockHistory == null && date.DayOfWeek != DayOfWeek.Sunday && date.DayOfWeek != DayOfWeek.Saturday)
+        var history = await _bovespa.GetStockHistory(stock, date);
+        if (history != null)
         {
-            await GenerateStockHistoryForDateAsync(stock, date);
+            await _repository.CreateStockHistoryWithListAsync(history);
         }
-        return _repository.GetStockHistoryList(stock.Id, date);
-    }
-    public async Task<StockHistory?> GetStockHistoryOrCreateAllAsync(Stock stock, DateTime date)
-    {
-        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday)
-            return null;
-        
-        var stockHistory = await _repository.GetStockHistoryOrDefaultAsync(stock.Id, date);
-        if (stockHistory == null)
+        else
         {
-            stockHistory = await GenerateStockHistoryForDateAsync(stock, date);
+            history = await _repository.GetStockHistoryListByStockIdAndDateAsync(stock.Id, date);
         }
-        return stockHistory;
-    }
-    public async Task<StockHistory?> GenerateStockHistoryForDateAsync(Stock stock, DateTime date)
-    {
-        StockHistory? stockHistory = null;
-        var stockHistoryList = await _bovespa.GetStockHistory(stock, date);
-        if (stockHistoryList == null)
-            return null;
-        foreach (var item in stockHistoryList)
-        {
-            try
-            {
-                await _repository.CreateAsync(item);
-                if (item.Date == date)
-                    stockHistory = item;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-        }
-        return stockHistory;
+        return history;
     }
 }

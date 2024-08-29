@@ -20,8 +20,9 @@ public class DefaultController : ControllerBase
     private readonly IWalletService _walletService;
     private readonly ITransactionHistoryService _transactionService;
     private readonly IPositionService _positionService;
+    private readonly IPositionHistoryService _positionHistoryService;
     
-    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService, ITransactionHistoryService transactionService)
+    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService, ITransactionHistoryService transactionService, IPositionHistoryService positionHistoryService)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -29,6 +30,7 @@ public class DefaultController : ControllerBase
         _unitOfWork = unitOfWork;
         _walletService = walletService;
         _transactionService = transactionService;
+        _positionHistoryService = positionHistoryService;
         _positionService = positionService;
     }
     
@@ -83,7 +85,7 @@ public class DefaultController : ControllerBase
             
             await _transactionService.CreateAsync(history);
 
-            // Get a existing position or create a new one
+            // Get an existing position or create a new one
             var position = await _positionService.GetPositionByWalletAndStockOrCreateAsync(history, stock);
 
             position.Amount += transactionDto.Amount;
@@ -94,7 +96,8 @@ public class DefaultController : ControllerBase
             else
                 await _positionService.CreateAsync(position);
 
-            // TODO Inserir codigo para o positionhistory
+            await _positionHistoryService.UpdateOrCreatePositionHistory(history, position);
+            await _positionHistoryService.UpdateAllPositionHistory(history, position);
             
             await _unitOfWork.SaveChangesAsync();
 
@@ -114,14 +117,16 @@ public class DefaultController : ControllerBase
         {
             if (transactionDto.StockSymbol == null)
                 return BadRequest("Stock cannot be null");
-            
+
             var stock = await _stockService.GetStockBySymbolOrDefaultAsync(transactionDto.StockSymbol);
             if (stock == null)
                 return BadRequest("Cannot find stock");
 
+            transactionDto.Amount = transactionDto.Amount < 0 ? -transactionDto.Amount : transactionDto.Amount;
+
             var history = transactionDto.Adapt<TransactionHistory>();
             history.Stock = stock;
-            history.Amount = history.Amount > 0 ? -history.Amount : history.Amount;
+            history.Amount = -history.Amount;
             await _transactionService.CreateAsync(history);
 
             var position =
@@ -129,21 +134,19 @@ public class DefaultController : ControllerBase
 
             if (position == null)
                 return BadRequest("You dont have position for this stock");
-            
-            if (position.Amount != 0)
-            {
-                history.EquityEffect = -(position.TotalPrice / position.Amount * transactionDto.Amount);
-                position.TotalPrice -= position.TotalPrice / position.Amount * transactionDto.Amount;
-                position.Amount -= transactionDto.Amount;
-            }
+
+            history.EquityEffect = -(position.TotalPrice / position.Amount * transactionDto.Amount);
+            position.TotalPrice -= position.TotalPrice / position.Amount * transactionDto.Amount;
+            position.Amount -= transactionDto.Amount;
 
             if (position.Amount < 0 || position.TotalPrice < 0)
                 return BadRequest("Invalid amount, ");
 
             _positionService.Put(position);
-            
-            // TODO Inserir codigo para o positionhistory
-            
+
+            await _positionHistoryService.UpdateOrCreatePositionHistory(history, position);
+            await _positionHistoryService.UpdateAllPositionHistory(history, position);
+
             await _unitOfWork.SaveChangesAsync();
 
             return Ok(history);
@@ -154,5 +157,4 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-    
 }

@@ -13,5 +13,36 @@ public class Positions : BaseEntity
     public virtual Wallet? Wallet { get; set; }
 
     public virtual Stock Stock { get; set; } = new();
-    public virtual List<PositionHistory>? PositionHistories { get; set; }
+    [JsonIgnore] 
+    public virtual List<PositionHistory> PositionHistories { get; set; } = new();
+
+
+    public List<PositionHistory> GetPositionHistoriesAfterDateOrLast(DateTime? date)
+    {
+        if (date != null)
+        {
+            var result = PositionHistories
+                .Where(x => x.Date.Date >= date.Value.Date)
+                .OrderBy(x => x.Date)
+                .ToList();
+
+            if (result.Count > 0)
+                return result;
+            
+            var last = PositionHistories.Where(x=>x.Date.Date <= date.Value.Date).MaxBy(x => x.Date);
+            
+            if (last != null)
+                result.Add(last);
+            
+            return result;
+        }
+        else
+        {
+            var result = PositionHistories
+                .OrderBy(x => x.Date)
+                .ToList();
+            
+            return result;
+        }
+    }
 }

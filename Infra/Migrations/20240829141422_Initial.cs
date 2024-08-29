@@ -139,7 +139,7 @@ namespace Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "PositionHistory",
+                name: "PositionHistories",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
@@ -151,9 +151,9 @@ namespace Infra.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PositionHistory", x => x.Id);
+                    table.PrimaryKey("PK_PositionHistories", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_PositionHistory_Positions_PositionId",
+                        name: "FK_PositionHistories_Positions_PositionId",
                         column: x => x.PositionId,
                         principalTable: "Positions",
                         principalColumn: "Id",
@@ -161,8 +161,8 @@ namespace Infra.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_PositionHistory_PositionId",
-                table: "PositionHistory",
+                name: "IX_PositionHistories_PositionId",
+                table: "PositionHistories",
                 column: "PositionId");
 
             migrationBuilder.CreateIndex(
@@ -208,7 +208,7 @@ namespace Infra.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "PositionHistory");
+                name: "PositionHistories");
 
             migrationBuilder.DropTable(
                 name: "StockHistories");

@@ -19,6 +19,9 @@ public class WalletRepository : BaseRepository<Wallet>, IWalletRepository
             .Include(w => w.Positions
                 .Where(p=>p.Amount > 0))
             .ThenInclude(p => p.Stock.Setor)
+            .Include(w => w.Positions
+                .Where(p=>p.Amount > 0))
+            .ThenInclude(p => p.PositionHistories)
             .FirstOrDefaultAsync(x => x.Id == id);
     }
 }

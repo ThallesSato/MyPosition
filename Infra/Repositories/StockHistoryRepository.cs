@@ -12,17 +12,27 @@ public class StockHistoryRepository : BaseRepository<StockHistory>, IStockHistor
     {
         _context = context.StockHistories;
     }
+
+    public async Task CreateStockHistoryWithListAsync(List<StockHistory> stockHistory)
+    {
+        foreach (var item in stockHistory)
+        {
+            var exists = await _context
+                .AnyAsync(x=>x.Date == item.Date && x.StockId == item.StockId);
+            if (!exists)
+            {
+                await _context.AddAsync(item);
+            }
+        }
+    }
+
+
+
     
-    public async Task<StockHistory?> GetStockHistoryOrDefaultAsync(int stockId, DateTime date)
+    public async Task<List<StockHistory>> GetStockHistoryListByStockIdAndDateAsync(int stockId, DateTime date)
     {
         return await _context
-            .FirstOrDefaultAsync(x => x.StockId == stockId && x.Date == date);
-    }
-    
-    public List<StockHistory> GetStockHistoryList(int stockId, DateTime date)
-    {
-        return _context
-            .Where(x => x.StockId == stockId && x.Date == date)
-            .ToList();
+            .Where(x => x.StockId == stockId && x.Date >= date)
+            .ToListAsync();
     }
 }
