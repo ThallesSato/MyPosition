@@ -184,7 +184,7 @@ public class TesteController : ControllerBase
             if (wallet == null)
                 return NotFound("Wallet not found");
             if (date >= DateTime.Now)
-                return BadRequest("Date must be less than today");
+                return BadRequest("Date must be in past");
 
             var totalAmountList = new Dictionary<DateTime, decimal>();
 
@@ -196,9 +196,9 @@ public class TesteController : ControllerBase
 
                 foreach (var history in historyList)
                 {
-                    if (totalAmountList.TryGetValue(history.Date.Date, out decimal temp))
+                    if (totalAmountList.ContainsKey(history.Date.Date))
                     {
-                        temp += history.Amount;
+                        totalAmountList[history.Date.Date] += history.Amount;
                     }
                     else
                     {
@@ -278,6 +278,54 @@ public class TesteController : ControllerBase
                 {
                     qnt += t.Amount;
                     cost += t.Cost;
+                }
+                
+                if (qnt == 0)
+                    continue;
+
+                if (result.ContainsKey(stock.Date.Date))
+                    result[stock.Date.Date] += (stock.Close * qnt)-cost;
+                else
+                    result.Add(stock.Date.Date, (stock.Close * qnt)-cost);
+            }
+        }
+        return Ok(result.OrderBy(x=>x.Key).ToDictionary());
+    }
+    [HttpGet("newvariation")]
+    public async Task<IActionResult> NewTesteVariation(int walletId, DateTime? date)
+    {
+        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+        if (wallet == null)
+            return NotFound();
+        if (date >= DateTime.Now)
+            return BadRequest("Date must be in past");
+        
+        var result = new Dictionary<DateTime, decimal>();
+        
+        foreach (var positions in wallet.Positions)
+        {
+            var positionHistoryList = positions.GetPositionHistoriesAfterDateOrLast(date);
+            if (positionHistoryList.Count == 0)
+                continue;
+            
+            var stockHistoryList =
+                await _stockHistoryService.GetStockHistoryList(positions.Stock,
+                    date ?? positionHistoryList.First().Date);
+            if (stockHistoryList.Count == 0)
+                continue;
+            
+            var qnt = 0;
+            decimal cost = 0;
+            foreach (var stock in stockHistoryList)
+            {
+                if (stock.Date.Date < date?.Date)
+                    continue;
+                
+                var t = positionHistoryList.FirstOrDefault(x => x.Date.Date <= stock.Date.Date);
+                if (t != null)
+                {
+                    qnt = t.Amount;
+                    cost = t.TotalPrice;
                 }
                 
                 if (qnt == 0)
