@@ -24,7 +24,7 @@ public class PositionHistoryService : BaseService<PositionHistory>, IPositionHis
     }
     public async Task UpdateOrCreatePositionHistory(TransactionHistory transaction, Positions positions)
     {
-        var positionHistory = await _repository.GetPositionHistoryByPositionIdAndDateOrDefaultAsync(positions.Id, transaction.Date);
+        var positionHistory = await _repository.GetPositionHistoryByPositionIdAndDateOrDefault(positions.Id, transaction.Date);
         if (positionHistory == null)
         {
             // If it doesn't exist yet, create a new one
@@ -39,13 +39,13 @@ public class PositionHistoryService : BaseService<PositionHistory>, IPositionHis
         }
         else
         {
-            if (positionHistory.Date < transaction.Date)
+            if (positionHistory.Date.Date < transaction.Date.Date)
             {
                 // If exists an old one (old date), create a new one updated
                 var positionHistoryDto = new PositionHistory
                 {
                     Position = positions,
-                    Date = transaction.Date,
+                    Date = transaction.Date.Date,
                     Amount = transaction.Amount + positionHistory.Amount,
                     TotalPrice = transaction.EquityEffect + positionHistory.TotalPrice
                 };

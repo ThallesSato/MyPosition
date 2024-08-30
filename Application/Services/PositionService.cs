@@ -30,4 +30,59 @@ public class PositionService : BaseService<Positions>, IPositionService
             };
         return position;
     }
+    
+    public Dictionary<DateTime, decimal> GetTotalAmountByDate(Wallet wallet, DateTime? date)
+    {
+        var totalAmountList = new Dictionary<DateTime, decimal>();
+
+        foreach (var positions in wallet.Positions)
+        {
+            var historyList = GetPositionHistoriesAfterDateOrLast(positions, date);
+            if (historyList.Count == 0)
+                continue;
+
+            foreach (var history in historyList)
+            {
+                if (totalAmountList.TryGetValue(history.Date.Date, out var currentAmount))
+                {
+                    totalAmountList[history.Date.Date] = currentAmount + history.Amount;
+                }
+                else
+                {
+                    totalAmountList[history.Date.Date] = history.TotalPrice;
+                }
+            }
+        }
+
+        return totalAmountList;
+    }
+    
+    public List<PositionHistory> GetPositionHistoriesAfterDateOrLast(Positions positions,DateTime? date)
+    {
+        if (date != null)
+        {
+            var result = positions.PositionHistories
+                .Where(x => x.Date.Date >= date.Value.Date)
+                .OrderBy(x => x.Date)
+                .ToList();
+
+            if (result.Count > 0)
+                return result;
+            
+            var last = positions.PositionHistories.Where(x=>x.Date.Date <= date.Value.Date).MaxBy(x => x.Date);
+            
+            if (last != null)
+                result.Add(last);
+            
+            return result;
+        }
+        else
+        {
+            var result = positions.PositionHistories
+                .OrderBy(x => x.Date)
+                .ToList();
+            
+            return result;
+        }
+    }
 }

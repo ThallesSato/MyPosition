@@ -2,5 +2,5 @@
 
 public interface IBacen
 {
-    Task<List<(DateTime date, Double interest)>?> GetInterestsSinceDate(DateTime date);
+    Task<List<(DateTime date, decimal interest)>?> GetInterestsSinceDateAsync(DateTime date);
 }

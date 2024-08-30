@@ -15,7 +15,7 @@ public class Bacen : IBacen
         _httpClient = new HttpClient();
     }
 
-    public async Task<List<(DateTime date, Double interest)>?> GetInterestsSinceDate(DateTime date)
+    public async Task<List<(DateTime date, decimal interest)>?> GetInterestsSinceDateAsync(DateTime date)
     {
         try
         {
@@ -30,7 +30,7 @@ public class Bacen : IBacen
             return interestList?
                 .Select(x => (
                     DateTime.ParseExact(x.Data, "dd/MM/yyyy", CultureInfo.InvariantCulture),
-                    Convert.ToDouble(x.Valor, CultureInfo.InvariantCulture)))
+                    Convert.ToDecimal(x.Valor, CultureInfo.InvariantCulture)))
                 .ToList();
         }
         catch (Exception e)

@@ -24,17 +24,17 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
             .Select(g => new TotalAmount
             {
                 Date = g.Key,
-                Amount = g.Sum(x => (double)x.EquityEffect)
+                Amount = g.Sum(x => x.EquityEffect)
             })
             .ToListAsync();
     }
 
-    public async Task<List<IGrouping<int,TransactionHistory>>?> GetAllByWalletIdAsync(int walletId)
+    public async Task<List<TransactionHistory>> GetAllByWalletIdAsync(int walletId)
     {
         return await _context
             .Where(x => x.WalletId == walletId)
-            .OrderBy(x => x.Date)
-            .GroupBy(x => x.StockId)
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x=>x.Id)
             .ToListAsync();
     }
 }

@@ -13,9 +13,12 @@ public class PositionHistoryRepository : BaseRepository<PositionHistory>, IPosit
         _context = context.PositionHistories;
     }
 
-    public async Task<PositionHistory?> GetPositionHistoryByPositionIdAndDateOrDefaultAsync(int positionId, DateTime date)
+    public async Task<PositionHistory?> GetPositionHistoryByPositionIdAndDateOrDefault(int positionId, DateTime date)
     {
-        return await _context.FirstOrDefaultAsync(x => x.PositionId == positionId && x.Date <= date);
+        return await _context
+            .Where(x => x.PositionId == positionId && x.Date <= date)
+            .OrderByDescending(x => x.Date)
+            .FirstOrDefaultAsync();
     }
     public async Task<List<PositionHistory>> GetPositionHistoryListByPositionIdAndDateOrDefaultAsync(int positionId, DateTime date)
     {

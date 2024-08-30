@@ -18,7 +18,7 @@ public class TransactionHistoryService : BaseService<TransactionHistory>, ITrans
         return await _repository.GetTotalAmountByDateAsync(walletId);
     }
 
-    public Task<List<IGrouping<int, TransactionHistory>>?> GetAllByWalletIdAsync(int walletId)
+    public Task<List<TransactionHistory>> GetAllByWalletIdAsync(int walletId)
     {
         return _repository.GetAllByWalletIdAsync(walletId);
     }

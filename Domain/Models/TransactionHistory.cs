@@ -1,4 +1,6 @@
-﻿namespace Domain.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace Domain.Models;
 
 public class TransactionHistory : BaseEntity
 {
@@ -8,7 +10,9 @@ public class TransactionHistory : BaseEntity
     public int StockId { get; set; }
     public decimal Price { get; set; }
     public decimal EquityEffect { get; set; }
+    [JsonIgnore]
     
     public virtual Wallet? Wallet { get; set; }
+    [JsonIgnore]
     public virtual Stock Stock { get; set; } = new();
 }
