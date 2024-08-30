@@ -216,7 +216,7 @@ public class DefaultController : ControllerBase
         }
     }
     
-    [HttpGet("Cdi/Absolute")]
+    [HttpGet("Cdi/Daily/Absolute")]
     public async Task<IActionResult> CdiAbsolute(int walletId, DateTime? date)
     {
         try
@@ -261,7 +261,7 @@ public class DefaultController : ControllerBase
         }
     }
 
-    [HttpGet("Cdi/Percentage")]
+    [HttpGet("Cdi/Daily/Percentage")]
     public async Task<IActionResult> CdiPercentage(int walletId, DateTime? date)
     {
         try
@@ -306,7 +306,7 @@ public class DefaultController : ControllerBase
         }
     }
     
-    [HttpGet("Variation/Absolute")]
+    [HttpGet("Variation/Daily/Absolute")]
     public async Task<IActionResult> VariationAbsolute(int walletId, DateTime? date)
     {
         var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
@@ -355,7 +355,7 @@ public class DefaultController : ControllerBase
         return Ok(result.OrderBy(x=>x.Key).ToDictionary());
     }
     
-    [HttpGet("Variation/Percentage")]
+    [HttpGet("Variation/Daily/Percentage")]
     public async Task<IActionResult> VariationPercentage(int walletId, DateTime? date)
     {
         var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);

@@ -99,4 +99,48 @@ public class TesteController : ControllerBase
         }
     }
 
+    
+    [HttpGet("Cdi/Daily/Absolute")]
+    public async Task<IActionResult> CdiAbsolute(int walletId, DateTime? date)
+    {
+        try
+        {
+            var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+            if (wallet == null)
+                return NotFound("Wallet not found");
+            if (date >= DateTime.Now)
+                return BadRequest("Date must be in past");
+
+            var totalAmountList = _positionService.GetTotalAmountByDate(wallet, date);
+
+            var interestsSinceDate = await _bacen.GetInterestsSinceDateAsync(date ?? totalAmountList.MinBy(x=>x.Key).Key);
+            if (interestsSinceDate == null || interestsSinceDate.Count == 0)
+                return BadRequest("Bacen service unavailable. Try again later");
+            
+            decimal total = 0;
+            decimal tds = 0;
+            var cumulativeProfit  = new Dictionary<DateTime, decimal>();
+
+            foreach (var interest in interestsSinceDate)
+            {
+                var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
+                if (position.Value != 0)
+                {
+                    total += position.Value;
+                    tds += position.Value;
+                    totalAmountList.Remove(position.Key);
+                }
+
+                total *= 1 + interest.interest / 100;
+                cumulativeProfit [interest.date.Date] = decimal.Round(total - tds, 2);
+            }
+
+            return Ok(cumulativeProfit);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
 }
