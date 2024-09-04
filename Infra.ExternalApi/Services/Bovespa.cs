@@ -47,7 +47,8 @@ public class Bovespa : IBovespa
 
     public async Task<List<StockHistory>?> GetStockHistory(Stock stock, DateTime date)
     {
-        var months = (DateTime.Now.Month - date.Month) + 1;
+        var span = DateTime.Now - date;
+        var months= span.Days / 30 + 1;
         var response = await _httpClient.GetAsync($"https://mfinance.com.br/api/v1/stocks/historicals/{stock.Symbol}?months={months}");
         
         if (!response.IsSuccessStatusCode)

@@ -21,11 +21,9 @@ public class DefaultController : ControllerBase
     private readonly ITransactionHistoryService _transactionService;
     private readonly IPositionService _positionService;
     private readonly IPositionHistoryService _positionHistoryService;
-    private readonly IStockHistoryService _stockHistoryService;
-    private readonly IBacen _bacen;
-    
-    
-    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService, ITransactionHistoryService transactionService, IPositionHistoryService positionHistoryService, IStockHistoryService stockHistoryService, IBacen bacen)
+
+
+    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService, ITransactionHistoryService transactionService, IPositionHistoryService positionHistoryService, IStockHistoryService stockHistoryService)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -34,8 +32,6 @@ public class DefaultController : ControllerBase
         _walletService = walletService;
         _transactionService = transactionService;
         _positionHistoryService = positionHistoryService;
-        _stockHistoryService = stockHistoryService;
-        _bacen = bacen;
         _positionService = positionService;
     }
     
@@ -216,191 +212,4 @@ public class DefaultController : ControllerBase
         }
     }
     
-    [HttpGet("Cdi/Daily/Absolute")]
-    public async Task<IActionResult> CdiAbsolute(int walletId, DateTime? date)
-    {
-        try
-        {
-            var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
-            if (wallet == null)
-                return NotFound("Wallet not found");
-            if (date >= DateTime.Now)
-                return BadRequest("Date must be in past");
-
-            var totalAmountList = _positionService.GetTotalAmountByDate(wallet, date);
-
-            var interestsSinceDate = await _bacen.GetInterestsSinceDateAsync(date ?? totalAmountList.MinBy(x=>x.Key).Key);
-            if (interestsSinceDate == null || interestsSinceDate.Count == 0)
-                return BadRequest("Bacen service unavailable. Try again later");
-            
-            decimal total = 0;
-            decimal tds = 0;
-            var cumulativeProfit  = new Dictionary<DateTime, decimal>();
-
-            foreach (var interest in interestsSinceDate)
-            {
-                var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-                if (position.Value != 0)
-                {
-                    total += position.Value;
-                    tds += position.Value;
-                    totalAmountList.Remove(position.Key);
-                }
-
-                total *= 1 + interest.interest / 100;
-
-                cumulativeProfit [interest.date.Date] = decimal.Round(total - tds, 2);
-            }
-
-            return Ok(cumulativeProfit );
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return BadRequest(e.Message);
-        }
-    }
-
-    [HttpGet("Cdi/Daily/Percentage")]
-    public async Task<IActionResult> CdiPercentage(int walletId, DateTime? date)
-    {
-        try
-        {
-            var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
-            if (wallet == null)
-                return NotFound("Wallet not found");
-            if (date >= DateTime.Now)
-                return BadRequest("Date must be in past");
-
-            var totalAmountList = _positionService.GetTotalAmountByDate(wallet, date);
-
-            var interestsSinceDate = await _bacen.GetInterestsSinceDateAsync(date ?? totalAmountList.MinBy(x=>x.Key).Key);
-            if (interestsSinceDate == null || interestsSinceDate.Count == 0)
-                return BadRequest("Bacen service unavailable. Try again later");
-            
-            decimal total = 0;
-            decimal tds = 0;
-            var cumulativeProfit = new Dictionary<DateTime, decimal>();
-
-            foreach (var interest in interestsSinceDate)
-            {
-                var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-                if (position.Value != 0)
-                {
-                    total += position.Value;
-                    tds += position.Value;
-                    totalAmountList.Remove(position.Key);
-                }
-
-                total *= 1 + interest.interest / 100;
-
-                cumulativeProfit[interest.date.Date] = decimal.Round((total - tds)/ tds * 100, 3);
-            }
-
-            return Ok(cumulativeProfit);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e);
-            return BadRequest(e.Message);
-        }
-    }
-    
-    [HttpGet("Variation/Daily/Absolute")]
-    public async Task<IActionResult> VariationAbsolute(int walletId, DateTime? date)
-    {
-        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
-        if (wallet == null)
-            return NotFound();
-        if (date >= DateTime.Now)
-            return BadRequest("Date must be in past");
-        
-        var result = new Dictionary<DateTime, decimal>();
-        
-        foreach (var positions in wallet.Positions)
-        {
-            var positionHistoryList = _positionService.GetPositionHistoriesAfterDateOrLast(positions, date);
-            if (positionHistoryList.Count == 0)
-                continue;
-            
-            var stockHistoryList =
-                await _stockHistoryService.GetStockHistoryList(positions.Stock,
-                    date ?? positionHistoryList.First().Date);
-            if (stockHistoryList.Count == 0)
-                continue;
-            
-            var qnt = 0;
-            decimal cost = 0;
-            foreach (var stock in stockHistoryList)
-            {
-                if (stock.Date.Date < date?.Date)
-                    continue;
-                
-                var t = positionHistoryList.FirstOrDefault(x => x.Date.Date <= stock.Date.Date);
-                if (t != null)
-                {
-                    qnt = t.Amount;
-                    cost = t.TotalPrice;
-                }
-                
-                if (qnt == 0 && date == null)
-                    continue;
-
-                if (result.TryGetValue(stock.Date.Date, out var value))
-                    result[stock.Date.Date] = value + (stock.Close * qnt - cost);
-                else
-                    result[stock.Date.Date] = stock.Close * qnt-cost;
-            }
-        }
-        return Ok(result.OrderBy(x=>x.Key).ToDictionary());
-    }
-    
-    [HttpGet("Variation/Daily/Percentage")]
-    public async Task<IActionResult> VariationPercentage(int walletId, DateTime? date)
-    {
-        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
-        if (wallet == null)
-            return NotFound();
-        if (date >= DateTime.Now)
-            return BadRequest("Date must be in past");
-        
-        var result = new Dictionary<DateTime, decimal>();
-        
-        foreach (var positions in wallet.Positions)
-        {
-            var positionHistoryList = _positionService.GetPositionHistoriesAfterDateOrLast(positions, date);
-            if (positionHistoryList.Count == 0)
-                continue;
-            
-            var stockHistoryList =
-                await _stockHistoryService.GetStockHistoryList(positions.Stock,
-                    date ?? positionHistoryList.First().Date);
-            if (stockHistoryList.Count == 0)
-                continue;
-            
-            var qnt = 0;
-            decimal cost = 0;
-            foreach (var stock in stockHistoryList)
-            {
-                if (stock.Date.Date < date?.Date)
-                    continue;
-                
-                var t = positionHistoryList.FirstOrDefault(x => x.Date.Date <= stock.Date.Date);
-                if (t != null)
-                {
-                    qnt = t.Amount;
-                    cost = t.TotalPrice;
-                }
-                
-                if (qnt == 0 && date == null)
-                    continue;
-
-                if (result.TryGetValue(stock.Date.Date, out var value))
-                    result[stock.Date.Date] = decimal.Round((value + (stock.Close * qnt - cost) / cost * 100)/2, 2);
-                else
-                    result[stock.Date.Date] = (stock.Close * qnt-cost)/ cost * 100;
-            }
-        }
-        return Ok(result.OrderBy(x=>x.Key).ToDictionary());
-    }
 }

@@ -37,7 +37,7 @@ public class PositionService : BaseService<Positions>, IPositionService
 
         foreach (var positions in wallet.Positions)
         {
-            var historyList = GetPositionHistoriesAfterDateOrLast(positions, date);
+            var historyList = GetPositionHistoriesAfterDateAndLast(positions, date);
             if (historyList.Count == 0)
                 continue;
 
@@ -57,17 +57,14 @@ public class PositionService : BaseService<Positions>, IPositionService
         return totalAmountList;
     }
     
-    public List<PositionHistory> GetPositionHistoriesAfterDateOrLast(Positions positions,DateTime? date)
+    public List<PositionHistory> GetPositionHistoriesAfterDateAndLast(Positions positions,DateTime? date)
     {
         if (date != null)
         {
             var result = positions.PositionHistories
-                .Where(x => x.Date.Date >= date.Value.Date)
+                .Where(x => x.Date.Date > date.Value.Date)
                 .OrderBy(x => x.Date)
                 .ToList();
-
-            if (result.Count > 0)
-                return result;
             
             var last = positions.PositionHistories.Where(x=>x.Date.Date <= date.Value.Date).MaxBy(x => x.Date);
             
