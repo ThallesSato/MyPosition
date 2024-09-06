@@ -8,6 +8,6 @@ public class TotalDto
     public decimal TotalValue { get; set; }
     public decimal ResultValue { get; set; }
     public decimal ResultPercentage { get; set; }
-    public Dictionary<string, decimal> PercentagePerSectors { get; set; } = new();
+    public List<SectorPctg> PercentagePerSectors { get; set; } = new();
     public Wallet? Wallet { get; set; }
 }

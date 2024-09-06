@@ -87,7 +87,7 @@ public class TesteController : ControllerBase
                 return Ok(result);
 
             result.PercentagePerSectors = sectorValues.OrderByDescending(x => x.Value)
-                .ToDictionary(x => x.Key, x => decimal.Round(x.Value / totalValue * 100));
+                .Select(x => new SectorPctg(x.Key, decimal.Round(x.Value / totalValue * 100, 2))).ToList();
             return Ok(result);
         }
         catch (Exception e)
