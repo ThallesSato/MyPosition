@@ -217,13 +217,13 @@ public class VariationController : ControllerBase
                 var key = Utils.GetKey(stock.Date, periodicity);
 
                 if (result.TryGetValue(key, out var value))
-                    result[key] = value + decimal.Round((stock.Close - stockOld) / stockOld * 100, 2);
+                    result[key] = value + (stock.Close - stockOld) / stockOld;
                 else
-                    result[key] = decimal.Round((stock.Close - stockOld) / stockOld * 100, 2);
+                    result[key] = (stock.Close - stockOld) / stockOld;
 
                 stockOld = stock.Close;
             }
         }
-        return Ok(result.OrderBy(x=>x.Key).ToDictionary());
+        return Ok(result);
     }
 }

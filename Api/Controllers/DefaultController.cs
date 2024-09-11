@@ -63,6 +63,8 @@ public class DefaultController : ControllerBase
             if (transactionDto.StockSymbol == null)
                 return BadRequest("Stock cannot be null");
 
+            transactionDto.Date = transactionDto.Date.Date;
+            
             var stock = await _stockService.GetStockBySymbolOrDefaultAsync(transactionDto.StockSymbol);
 
             if (stock == null)
@@ -118,6 +120,8 @@ public class DefaultController : ControllerBase
         {
             if (transactionDto.StockSymbol == null)
                 return BadRequest("Stock cannot be null");
+
+            transactionDto.Date = transactionDto.Date.Date;
 
             var stock = await _stockService.GetStockBySymbolOrDefaultAsync(transactionDto.StockSymbol);
             if (stock == null)

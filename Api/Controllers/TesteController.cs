@@ -85,7 +85,9 @@ public class TesteController : ControllerBase
             
             if (totalValue == 0)
                 return Ok(result);
-
+            
+            //TODO COLOCAR OS 5 MAIORES E DPS "OUTROS"
+            
             result.PercentagePerSectors = sectorValues.OrderByDescending(x => x.Value)
                 .Select(x => new SectorPctg(x.Key, decimal.Round(x.Value / totalValue * 100, 2))).ToList();
             return Ok(result);
@@ -96,5 +98,69 @@ public class TesteController : ControllerBase
             return BadRequest(e.Message);
         }
     }
+[HttpGet("Percentage")]
+    public async Task<IActionResult> VariationPercentage(int walletId, DateTime? date, Periodicity periodicity)
+    {
+        if (date >= DateTime.Now)
+            return BadRequest("Date must be in past");
+        
+        var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+        if (wallet == null)
+            return NotFound();
+        
+        var result = new SortedDictionary<object, (decimal TotalMesAnterior ,List<(decimal AcaoMesAnterior,decimal VariacaoAcao)> AcaoMesAnteriorIVariacaoAcao)>();
+        
+        foreach (var positions in wallet.Positions)
+        {
+            var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
+            if (positionHistoryList.Count == 0)
+                continue;
+            
+            var stockHistoryList =
+                await _stockHistoryService.GetStockHistoryList(positions.Stock,
+                    date ?? positionHistoryList.First().Date);
+            if (stockHistoryList.Count == 0)
+                continue;
+            
+            var stockOld = positionHistoryList.First().TotalPrice/positionHistoryList.First().Amount;
 
+            stockHistoryList = Utils.PeriodicityListAndFiltered(periodicity, stockHistoryList, date);
+
+            var qnt = 0;
+            foreach (var stock in stockHistoryList)
+            {
+                var positionHistory = positionHistoryList.FirstOrDefault(x => x.Date.Date <= stock.Date.Date);
+                if (positionHistory != null)
+                {
+                    qnt = positionHistory.Amount;
+                    positionHistoryList.Remove(positionHistory);
+                }
+                
+                if (qnt == 0 && date == null)
+                    continue;
+
+                var key = Utils.GetKey(stock.Date, periodicity);
+
+                if (result.TryGetValue(key, out var value))
+                {
+                    value.Item2.Add((stockOld * qnt, (stock.Close - stockOld) / stockOld));
+                    result[key] = (value.Item1 += stockOld * qnt, value.Item2);
+                }
+                else
+                {
+                    result[key] = (stockOld * qnt, [(stockOld * qnt, (stock.Close - stockOld) / stockOld)]);
+                }
+
+                stockOld = stock.Close;
+            }
+        }
+        foreach (var (data, (total, acoes)) in result)
+        {
+            foreach (var (acaoMesAnterior, variacao) in acoes)
+            {
+                //TODO AAAAAAAAAAAAA
+            }
+        }
+        return Ok(result);
+    }
 }
