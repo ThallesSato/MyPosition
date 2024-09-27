@@ -1,4 +1,4 @@
-﻿namespace Api.utils;
+﻿namespace Application.utils;
 
 public enum Periodicity
 {

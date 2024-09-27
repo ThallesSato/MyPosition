@@ -1,21 +1,20 @@
 ﻿using Domain.Models;
-using SQLitePCL;
 
-namespace Api.utils;
+namespace Application.utils;
 
 public static class Utils
 {
-    public static object GetKey(DateTime date, Periodicity periodicity)
+    public static string GetKey(DateTime date, Periodicity periodicity)
     {
         switch (periodicity)
         {
             case Periodicity.Monthly:
                 return date.Date.ToString("yyyy/MM");
             case Periodicity.Annually:
-                return date.Date.Year;
+                return date.Date.ToString("yyyy");
             case Periodicity.Daily:
             default:
-                return date.Date.Date;
+                return date.Date.ToString("yyyy-MM-dd");
         }
     }
     

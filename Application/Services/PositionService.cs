@@ -68,8 +68,8 @@ public class PositionService : BaseService<Positions>, IPositionService
             
             var last = positions.PositionHistories.Where(x=>x.Date.Date <= date.Value.Date).MaxBy(x => x.Date);
             
-            if (last != null)
-                result.Add(last);
+            if (last != null && !result.Any(x=>x.Date.Date < date.Value.Date))
+                result.Insert(0,last);
             
             return result;
         }

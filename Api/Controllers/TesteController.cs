@@ -1,6 +1,9 @@
-﻿using Api.utils;
+﻿using System.Collections.Specialized;
+using Api.Facades;
 using Application.Dtos.Output;
 using Application.Interfaces;
+using Application.utils;
+using Domain.Models;
 using Infra.ExternalApi.Interfaces;
 using Infra.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +24,7 @@ public class TesteController : ControllerBase
     private readonly IStockHistoryService _stockHistoryService;
     private readonly IBacen _bacen;
     private readonly IPositionHistoryService _positionHistoryService;
+    private readonly VariationFacade _variationFacade;
 
     public TesteController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IPositionService positionService, IWalletService walletService, ITransactionHistoryService transactionService, IUnitOfWork unitOfWork, IStockHistoryService stockHistoryService, IBacen bacen, IPositionHistoryService positionHistoryService)
     {
@@ -34,6 +38,7 @@ public class TesteController : ControllerBase
         _stockHistoryService = stockHistoryService;
         _bacen = bacen;
         _positionHistoryService = positionHistoryService;
+        _variationFacade = new VariationFacade(positionService, stockHistoryService);
     }
 
     //TODO by sectors (daily, monthly, annually)
@@ -98,8 +103,9 @@ public class TesteController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-[HttpGet("Percentage")]
-    public async Task<IActionResult> VariationPercentage(int walletId, DateTime? date, Periodicity periodicity)
+    
+    [HttpGet("Percentage/Accumulated")]
+    public async Task<IActionResult> PercentageAccumulated(int walletId, DateTime? date, GraphType graphType, Periodicity periodicity)
     {
         if (date >= DateTime.Now)
             return BadRequest("Date must be in past");
@@ -108,59 +114,48 @@ public class TesteController : ControllerBase
         if (wallet == null)
             return NotFound();
         
-        var result = new SortedDictionary<object, (decimal TotalMesAnterior ,List<(decimal AcaoMesAnterior,decimal VariacaoAcao)> AcaoMesAnteriorIVariacaoAcao)>();
+        var totalAmountList = _positionService.GetTotalAmountByDate(wallet, date);
+        List<(DateTime date, decimal interest)>? interestsSinceDate;
+        var helper = 0;
+        do {
+            interestsSinceDate = await _bacen.GetInterestsSinceDateAsync(date ?? totalAmountList.MinBy(x=>x.Key).Key);
+            helper++;
+        } while (interestsSinceDate == null && helper < 5);
+        if (interestsSinceDate == null || interestsSinceDate.Count == 0)
+            return BadRequest("Bacen service unavailable. Try again later");
+
+        Dictionary<object, decimal> cdi;
+        SortedDictionary<string, decimal> variation;
         
-        foreach (var positions in wallet.Positions)
+        switch (graphType)
         {
-            var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
-            if (positionHistoryList.Count == 0)
-                continue;
-            
-            var stockHistoryList =
-                await _stockHistoryService.GetStockHistoryList(positions.Stock,
-                    date ?? positionHistoryList.First().Date);
-            if (stockHistoryList.Count == 0)
-                continue;
-            
-            var stockOld = positionHistoryList.First().TotalPrice/positionHistoryList.First().Amount;
-
-            stockHistoryList = Utils.PeriodicityListAndFiltered(periodicity, stockHistoryList, date);
-
-            var qnt = 0;
-            foreach (var stock in stockHistoryList)
-            {
-                var positionHistory = positionHistoryList.FirstOrDefault(x => x.Date.Date <= stock.Date.Date);
-                if (positionHistory != null)
-                {
-                    qnt = positionHistory.Amount;
-                    positionHistoryList.Remove(positionHistory);
-                }
-                
-                if (qnt == 0 && date == null)
-                    continue;
-
-                var key = Utils.GetKey(stock.Date, periodicity);
-
-                if (result.TryGetValue(key, out var value))
-                {
-                    value.Item2.Add((stockOld * qnt, (stock.Close - stockOld) / stockOld));
-                    result[key] = (value.Item1 += stockOld * qnt, value.Item2);
-                }
-                else
-                {
-                    result[key] = (stockOld * qnt, [(stockOld * qnt, (stock.Close - stockOld) / stockOld)]);
-                }
-
-                stockOld = stock.Close;
-            }
+            case GraphType.Absolute:
+                cdi = CdiFacade.CdiAbsolute(periodicity, interestsSinceDate, totalAmountList);
+                variation = await _variationFacade.VariationAbsolute(date, periodicity, wallet);
+                break;
+            case GraphType.AbsoluteAccumulated:
+                cdi = CdiFacade.CdiAbsoluteAccumulated(periodicity, interestsSinceDate, totalAmountList);
+                variation = await _variationFacade.VariationAbsoluteAccumulated(date, periodicity, wallet);
+                break;
+            case GraphType.Percentage:
+                cdi = CdiFacade.CdiPercentage(periodicity, interestsSinceDate, totalAmountList);
+                variation = await _variationFacade.VariationPercentage(date, periodicity, wallet);
+                break;
+            case GraphType.PercentageAccumulated:
+            default:
+                cdi = CdiFacade.CdiPercentageAccumulated(periodicity, interestsSinceDate, totalAmountList);
+                variation = await _variationFacade.VariationPercentageAccumulated(date, periodicity, wallet);
+                break;
         }
-        foreach (var (data, (total, acoes)) in result)
+        
+        var response = new
         {
-            foreach (var (acaoMesAnterior, variacao) in acoes)
-            {
-                //TODO AAAAAAAAAAAAA
-            }
-        }
-        return Ok(result);
+            falha = variation.Count != cdi.Count,
+            dates = variation.Select(x=>x.Key.ToString()), 
+            variation = variation.Select(x=>x.Value),
+            cdi = cdi.Select(x=>x.Value)
+        };
+        return Ok(response);
     }
+    
 }
