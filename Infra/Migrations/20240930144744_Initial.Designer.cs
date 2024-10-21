@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infra.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240911144425_Initial")]
+    [Migration("20240930144744_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -172,6 +172,29 @@ namespace Infra.Migrations
                     b.ToTable("TransactionHistories");
                 });
 
+            modelBuilder.Entity("Domain.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
             modelBuilder.Entity("Domain.Models.Wallet", b =>
                 {
                     b.Property<int>("Id")
@@ -182,7 +205,12 @@ namespace Infra.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Wallets");
                 });
@@ -256,6 +284,17 @@ namespace Infra.Migrations
                     b.Navigation("Wallet");
                 });
 
+            modelBuilder.Entity("Domain.Models.Wallet", b =>
+                {
+                    b.HasOne("Domain.Models.User", "User")
+                        .WithMany("Wallets")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Models.Positions", b =>
                 {
                     b.Navigation("PositionHistories");
@@ -264,6 +303,11 @@ namespace Infra.Migrations
             modelBuilder.Entity("Domain.Models.Stock", b =>
                 {
                     b.Navigation("Historicals");
+                });
+
+            modelBuilder.Entity("Domain.Models.User", b =>
+                {
+                    b.Navigation("Wallets");
                 });
 
             modelBuilder.Entity("Domain.Models.Wallet", b =>

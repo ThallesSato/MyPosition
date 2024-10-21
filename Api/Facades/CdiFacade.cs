@@ -1,44 +1,35 @@
 ﻿using Application.utils;
+using Infra.Dtos.Internal;
 
 namespace Api.Facades;
 
 public static class CdiFacade
 {
-    public static Dictionary<object, decimal> CdiAbsolute(Periodicity periodicity, List<(DateTime date, decimal interest)> interestsSinceDate, Dictionary<DateTime, decimal> totalAmountList)
+    public static Dictionary<string, decimal> CdiAbsolute(
+        Periodicity periodicity, 
+        List<(DateTime date, decimal interest)> interestsSinceDate, 
+        List<TotalAmount> totalAmountList)
     {
-        decimal total = 0, tds = 0, lastPosition = 0;
-        var cumulativeProfit  = new Dictionary<object, decimal>();
-        var helper = 0;
+        decimal total = 0, tds = 0;
+        var cumulativeProfit  = new Dictionary<string, decimal>();
+        var helper = string.Empty;
 
         foreach (var interest in interestsSinceDate)
         {
-            var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-            if (position.Value != 0)
+            var position = totalAmountList.FirstOrDefault(x => x.Date <= interest.date.Date);
+            if (position != null)
             {
-                total += position.Value - lastPosition;
-                tds += position.Value - lastPosition;
-                lastPosition = position.Value;
-                totalAmountList.Remove(position.Key);
+                total += position.Amount;
+                tds += position.Amount;
+                totalAmountList.Remove(position);
             }
 
             var key = Utils.GetKey(interest.date, periodicity);
                 
-            if (helper != periodicity switch
-                {
-                    Periodicity.Monthly => interest.date.Month,
-                    Periodicity.Annually => interest.date.Year,
-                    Periodicity.Daily => -1,
-                    _ => -1
-                })
+            if (helper != key)
             {
                 tds = total;
-                helper = periodicity switch
-                {
-                    Periodicity.Monthly => interest.date.Month,
-                    Periodicity.Annually => interest.date.Year,
-                    Periodicity.Daily => 0,
-                    _ => 0
-                };
+                helper = key;
             }
                 
             total *= 1 + interest.interest / 100;
@@ -48,20 +39,22 @@ public static class CdiFacade
         return cumulativeProfit;
     }
 
-    public static Dictionary<object, decimal> CdiAbsoluteAccumulated(Periodicity periodicity, List<(DateTime date, decimal interest)> interestsSinceDate,
-        Dictionary<DateTime, decimal> totalAmountList)
+    public static Dictionary<string, decimal> CdiAbsoluteAccumulated(
+        Periodicity periodicity, 
+        List<(DateTime date, decimal interest)> interestsSinceDate,
+        List<TotalAmount> totalAmountList)
     {
         decimal total = 0, tds = 0;
-        var cumulativeProfit  = new Dictionary<object, decimal>();
+        var cumulativeProfit  = new Dictionary<string, decimal>();
 
         foreach (var interest in interestsSinceDate)
         {
-            var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-            if (position.Value != 0)
+            var position = totalAmountList.FirstOrDefault(x => x.Date <= interest.date.Date);
+            if (position != null)
             {
-                total = position.Value + total - tds;
-                tds = position.Value;
-                totalAmountList.Remove(position.Key);
+                total += position.Amount;
+                tds += position.Amount;
+                totalAmountList.Remove(position);
             }
             var key = Utils.GetKey(interest.date, periodicity);
                 
@@ -72,21 +65,24 @@ public static class CdiFacade
         return cumulativeProfit;
     }
     
-    public static Dictionary<object, decimal> CdiPercentage(Periodicity periodicity, List<(DateTime date, decimal interest)> interestsSinceDate, Dictionary<DateTime, decimal> totalAmountList)
+    public static Dictionary<string, decimal> CdiPercentage(
+        Periodicity periodicity, 
+        List<(DateTime date, decimal interest)> interestsSinceDate, 
+        List<TotalAmount> totalAmountList)
     {
         decimal total = 0;
         decimal tds = 0;
-        var cumulativeProfit = new Dictionary<object, decimal>();
+        var cumulativeProfit = new Dictionary<string, decimal>();
         object helper = 0;
             
         foreach (var interest in interestsSinceDate)
         {
-            var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-            if (position.Value != 0)
+            var position = totalAmountList.FirstOrDefault(x => x.Date <= interest.date.Date);
+            if (position != null)
             {
-                total += position.Value;
-                tds += position.Value;
-                totalAmountList.Remove(position.Key);
+                total += position.Amount;
+                tds += position.Amount;
+                totalAmountList.Remove(position);
             }
     
             var key = Utils.GetKey(interest.date.Date, periodicity);
@@ -105,21 +101,23 @@ public static class CdiFacade
         return cumulativeProfit;
     }
     
-    public static Dictionary<object, decimal> CdiPercentageAccumulated(Periodicity periodicity, List<(DateTime date, decimal interest)> interestsSinceDate,
-        Dictionary<DateTime, decimal> totalAmountList)
+    public static Dictionary<string, decimal> CdiPercentageAccumulated(
+        Periodicity periodicity, 
+        List<(DateTime date, decimal interest)> interestsSinceDate,
+        List<TotalAmount> totalAmountList)
     {
         decimal total = 0;
         decimal tds = 0;
-        var cumulativeProfit = new Dictionary<object, decimal>();
+        var cumulativeProfit = new Dictionary<string, decimal>();
     
         foreach (var interest in interestsSinceDate)
         {
-            var position = totalAmountList.FirstOrDefault(x => x.Key <= interest.date.Date);
-            if (position.Value != 0)
+            var position = totalAmountList.FirstOrDefault(x => x.Date <= interest.date.Date);
+            if (position != null)
             {
-                total += position.Value;
-                tds += position.Value;
-                totalAmountList.Remove(position.Key);
+                total += position.Amount;
+                tds += position.Amount;
+                totalAmountList.Remove(position);
             }
     
             total *= 1 + interest.interest / 100;

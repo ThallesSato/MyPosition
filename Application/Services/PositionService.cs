@@ -31,9 +31,9 @@ public class PositionService : BaseService<Positions>, IPositionService
         return position;
     }
     
-    public Dictionary<DateTime, decimal> GetTotalAmountByDate(Wallet wallet, DateTime? date)
+    public SortedDictionary<DateTime, decimal> GetTotalAmountByDate(Wallet wallet, DateTime? date)
     {
-        var totalAmountList = new Dictionary<DateTime, decimal>();
+        var totalAmountList = new SortedDictionary<DateTime, decimal>();
 
         foreach (var positions in wallet.Positions)
         {
@@ -45,7 +45,7 @@ public class PositionService : BaseService<Positions>, IPositionService
             {
                 if (totalAmountList.TryGetValue(history.Date.Date, out var currentAmount))
                 {
-                    totalAmountList[history.Date.Date] = currentAmount + history.Amount;
+                    totalAmountList[history.Date.Date] = currentAmount + history.TotalPrice;
                 }
                 else
                 {

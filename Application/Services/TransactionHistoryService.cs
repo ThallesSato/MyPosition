@@ -13,7 +13,7 @@ public class TransactionHistoryService : BaseService<TransactionHistory>, ITrans
         _repository = repository1;
     }
 
-    public async Task<List<TotalAmount>?> GetTotalAmountByDateAsync(int walletId)
+    public async Task<List<TotalAmount>> GetTotalAmountByDateAsync(int walletId)
     {
         return await _repository.GetTotalAmountByDateAsync(walletId);
     }

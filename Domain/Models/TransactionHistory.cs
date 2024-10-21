@@ -13,6 +13,5 @@ public class TransactionHistory : BaseEntity
     [JsonIgnore]
     
     public virtual Wallet? Wallet { get; set; }
-    [JsonIgnore]
     public virtual Stock Stock { get; set; } = new();
 }

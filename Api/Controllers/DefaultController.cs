@@ -1,15 +1,20 @@
-﻿using Application.Dtos.Input;
+﻿using System.Security.Claims;
+using Api.Facades;
+using Application.Dtos.Input;
+using Application.Dtos.Output;
 using Application.Interfaces;
+using Application.utils;
 using Domain.Models;
 using Infra.ExternalApi.Interfaces;
 using Infra.Interfaces;
 using Mapster;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
-
 [Route("api/[controller]")]
+[Authorize]
 [ApiController]
 public class DefaultController : ControllerBase
 {
@@ -21,9 +26,14 @@ public class DefaultController : ControllerBase
     private readonly ITransactionHistoryService _transactionService;
     private readonly IPositionService _positionService;
     private readonly IPositionHistoryService _positionHistoryService;
+    private readonly IUserService _userService;
+    private readonly IBacen _bacen;
+    private readonly VariationFacade _variationFacade;
 
 
-    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService, IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService, ITransactionHistoryService transactionService, IPositionHistoryService positionHistoryService, IStockHistoryService stockHistoryService)
+    public DefaultController(IBovespa bovespa, IStockService stockService, ISectorService sectorService,
+        IUnitOfWork unitOfWork, IWalletService walletService, IPositionService positionService,
+        ITransactionHistoryService transactionService, IPositionHistoryService positionHistoryService, IUserService userService, IBacen bacen, VariationFacade variationFacade)
     {
         _bovespa = bovespa;
         _stockService = stockService;
@@ -32,17 +42,27 @@ public class DefaultController : ControllerBase
         _walletService = walletService;
         _transactionService = transactionService;
         _positionHistoryService = positionHistoryService;
+        _userService = userService;
+        _bacen = bacen;
+        _variationFacade = variationFacade;
         _positionService = positionService;
     }
-    
+
     [HttpPost("CreateWallet")]
     public async Task<IActionResult> CreateWallet(string name)
     {
         try
         {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
             var wallet = new Wallet
             {
-                Name = name
+                Name = name,
+                User = user
             };
             await _walletService.CreateAsync(wallet);
             await _unitOfWork.SaveChangesAsync();
@@ -54,7 +74,7 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-    
+
     [HttpPost("BuyStock")]
     public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
     {
@@ -63,8 +83,22 @@ public class DefaultController : ControllerBase
             if (transactionDto.StockSymbol == null)
                 return BadRequest("Stock cannot be null");
 
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+
+            var wallet = await _walletService.GetByIdOrDefaultAsync(transactionDto.WalletId);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != user.Id)
+                return BadRequest("This wallet is not yours");
+
             transactionDto.Date = transactionDto.Date.Date;
-            
+
             var stock = await _stockService.GetStockBySymbolOrDefaultAsync(transactionDto.StockSymbol);
 
             if (stock == null)
@@ -76,16 +110,16 @@ public class DefaultController : ControllerBase
 
                 var sector = await _sectorService.GetOrCreateSectorAsync(stockDto.Sector);
                 stock = await _stockService.CreateStockAsync(stockDto, sector);
-                
+
                 if (stock == null)
                     return BadRequest("Cannot create stock, try again");
             }
 
             var history = transactionDto.Adapt<TransactionHistory>();
-            
+
             history.Stock = stock;
             history.EquityEffect = transactionDto.Amount * transactionDto.Price;
-            
+
             await _transactionService.CreateAsync(history);
 
             // Get an existing position or create a new one
@@ -101,7 +135,7 @@ public class DefaultController : ControllerBase
 
             await _positionHistoryService.UpdateOrCreatePositionHistory(history, position);
             await _positionHistoryService.UpdateAllPositionHistory(history, position);
-            
+
             await _unitOfWork.SaveChangesAsync();
 
             return Ok(position);
@@ -121,6 +155,20 @@ public class DefaultController : ControllerBase
             if (transactionDto.StockSymbol == null)
                 return BadRequest("Stock cannot be null");
 
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+
+            var wallet = await _walletService.GetByIdOrDefaultAsync(transactionDto.WalletId);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != user.Id)
+                return BadRequest("This wallet is not yours");
+
             transactionDto.Date = transactionDto.Date.Date;
 
             var stock = await _stockService.GetStockBySymbolOrDefaultAsync(transactionDto.StockSymbol);
@@ -139,7 +187,7 @@ public class DefaultController : ControllerBase
 
             if (position == null || position.Amount == 0)
                 return BadRequest("You dont have position for this stock");
-            
+
             history.EquityEffect = -(position.TotalPrice / position.Amount * transactionDto.Amount);
             position.TotalPrice -= position.TotalPrice / position.Amount * transactionDto.Amount;
             position.Amount -= transactionDto.Amount;
@@ -162,14 +210,25 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
+
     [HttpGet("TransactionHistory")]
     public async Task<IActionResult> GetTransactionHistory(int id)
-    {try
+    {
+        try
         {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(id);
             if (wallet == null)
                 return NotFound();
+            if (wallet.User.Id != user.Id)
+                return BadRequest("This wallet is not yours");
 
             return Ok(await _transactionService.GetAllByWalletIdAsync(wallet.Id));
         }
@@ -179,33 +238,49 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-    
+
     [HttpDelete("DeleteTransaction")]
     public async Task<IActionResult> DeleteTransaction(int id)
     {
         try
         {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+
             var transaction = await _transactionService.GetByIdOrDefaultAsync(id);
             if (transaction == null)
                 return NotFound();
-            
+
+            var wallet = await _walletService.GetByIdOrDefaultAsync(transaction.WalletId);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != user.Id)
+                return BadRequest("This wallet is not yours");
+
+
             var position =
-                await _positionService.GetPositionByWalletAndStockOrDefaultAsync(transaction.WalletId, transaction.StockId);
+                await _positionService.GetPositionByWalletAndStockOrDefaultAsync(transaction.WalletId,
+                    transaction.StockId);
             if (position == null)
                 return BadRequest("You dont have position for this stock.");
-            
+
             position.Amount -= transaction.Amount;
             position.TotalPrice -= transaction.EquityEffect;
 
             transaction.EquityEffect = -transaction.EquityEffect;
             transaction.Amount = -transaction.Amount;
-            
+
             await _positionHistoryService.UpdateOrCreatePositionHistory(transaction, position);
             await _positionHistoryService.UpdateAllPositionHistory(transaction, position);
-            
+
             _transactionService.Delete(transaction);
             _positionService.Put(position);
-            
+
             await _unitOfWork.SaveChangesAsync();
             return Ok();
         }
@@ -216,4 +291,277 @@ public class DefaultController : ControllerBase
         }
     }
     
+    
+    [HttpGet("MainMenu")]
+    public async Task<IActionResult> MainMenu()
+    {
+        try
+        {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailLoadedAsync(claim);
+            if (user == null)
+                return Unauthorized();
+
+            //TODO DOING HOME PAGE CONTROLLER
+            var result = user.Wallets.Select(x => new
+            {
+                x.Id,
+                x.Name
+            });
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpGet("HomePage")]
+    public async Task<IActionResult> HomePage()
+    {
+        try
+        {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailLoadedAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+            var userDto = new UserDto
+            {
+                Email = user.Email,
+                Name = user.Name,
+                Wallets = user.Wallets.Select(x => new WalletDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Positions = x.Positions
+                }).ToList()
+            };
+
+            foreach (var wallet in userDto.Wallets)
+            {
+                foreach (var position in wallet.Positions)
+                {
+                    wallet.TotalValue += position.Amount * position.Stock.LastPrice;
+                    wallet.TotalCost += position.TotalPrice;
+                }
+
+                wallet.TotalProfit = wallet.TotalValue - wallet.TotalCost;
+                wallet.ProfitPctg = wallet.TotalCost == 0
+                    ? 0
+                    : decimal.Round(wallet.TotalProfit / wallet.TotalCost * 100, 2);
+                userDto.TotalValue += wallet.TotalValue;
+                userDto.TotalCost += wallet.TotalCost;
+                wallet.Positions = [];
+            }
+
+            userDto.TotalProfit = userDto.TotalValue - userDto.TotalCost;
+            userDto.ProfitPctg = userDto.TotalCost == 0
+                ? 0
+                : decimal.Round(userDto.TotalProfit / userDto.TotalCost * 100, 2);
+
+            //TODO DOING HOME PAGE CONTROLLER
+            return Ok(userDto);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpGet("Chart/Wallet/Cdi")]
+    public async Task<IActionResult> ChartWalletCdi(int walletId, DateTime? date, GraphType graphType,
+        Periodicity periodicity)
+    {
+        try
+        {
+            if (date >= DateTime.Now)
+                return BadRequest("Date must be in past");
+
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+
+            var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != user.Id)
+                return BadRequest("This wallet is not yours");
+
+            var totalAmountList = await _transactionService.GetTotalAmountByDateAsync(walletId);
+
+            List<(DateTime date, decimal interest)>? interestsSinceDate = null;
+
+            var minDate = date ?? totalAmountList.MinBy(x => x.Date)?.Date;
+            if (minDate == null)
+                return StatusCode(StatusCodes.Status500InternalServerError, "Min date is null");
+
+            for (int i = 0; i < 10; i++)
+            {
+                interestsSinceDate = await _bacen.GetInterestsSinceDateAsync(minDate.Value);
+                if (interestsSinceDate != null)
+                    break;
+
+                await Task.Delay(1000); // Add a delay of 1 second between each call
+            }
+
+            if (interestsSinceDate == null || interestsSinceDate.Count == 0)
+                return BadRequest("Bacen service unavailable. Try again later");
+
+
+            Dictionary<string, decimal> cdi;
+            SortedDictionary<string, decimal> variation;
+
+            switch (graphType)
+            {
+                case GraphType.Absolute:
+                    cdi = CdiFacade.CdiAbsolute(periodicity, interestsSinceDate, totalAmountList);
+                    variation = await _variationFacade.VariationAbsolute(date, periodicity, wallet);
+                    break;
+                case GraphType.AbsoluteAccumulated:
+                    cdi = CdiFacade.CdiAbsoluteAccumulated(periodicity, interestsSinceDate, totalAmountList);
+                    variation = await _variationFacade.VariationAbsoluteAccumulated(date, periodicity, wallet);
+                    break;
+                case GraphType.Percentage:
+                    cdi = CdiFacade.CdiPercentage(periodicity, interestsSinceDate, totalAmountList);
+                    variation = await _variationFacade.VariationPercentage(date, periodicity, wallet);
+                    break;
+                case GraphType.PercentageAccumulated:
+                default:
+                    cdi = CdiFacade.CdiPercentageAccumulated(periodicity, interestsSinceDate, totalAmountList);
+                    variation = await _variationFacade.VariationPercentageAccumulated(date, periodicity, wallet);
+                    break;
+            }
+
+            if (variation.Count > cdi.Count)
+            {
+                variation.Remove(variation.Last().Key);
+            }
+            else if (variation.Count < cdi.Count)
+            {
+                foreach (var cv in cdi.Where(cv => !variation.ContainsKey(cv.Key)))
+                {
+                    variation.Add(cv.Key, 0);
+                }
+            }
+
+            var response = new
+            {
+                dates = variation.Select(x => x.Key.ToString()).ToList(),
+                variation = variation.Select(x => x.Value).ToList(),
+                cdi = cdi.Select(x => x.Value).ToList()
+            };
+            return Ok(response);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpGet("Sectors")]
+    public async Task<IActionResult> Sectors(int id)
+    {
+        try
+        {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var user = await _userService.GetUserByEmailAsync(claim);
+            if (user == null)
+                return Unauthorized();
+            await _stockService.UpdateAllStocksAsync();
+
+            var wallet = await _walletService.GetByIdOrDefaultAsync(id);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != user.Id)
+            {
+                return BadRequest("This wallet is not yours");
+            }
+
+            decimal totalValue = 0, totalCost = 0;
+
+            var result = new TotalDto();
+            foreach (var position in wallet.Positions)
+            {
+                totalCost += position.TotalPrice;
+                totalValue += position.Amount * position.Stock.LastPrice;
+                var positionDto = new PositionDto
+                {
+                    Amount = position.Amount,
+                    Stock = position.Stock,
+                    StockId = position.Stock.Id,
+                    TotalPrice = position.TotalPrice,
+                    WalletId = wallet.Id,
+                    TotalValue = position.Amount * position.Stock.LastPrice,
+                    Profit = position.Amount * position.Stock.LastPrice - position.TotalPrice,
+                    ProfitPctg =
+                        decimal.Round(
+                            (position.Amount * position.Stock.LastPrice - position.TotalPrice) / position.TotalPrice *
+                            100, 2)
+                };
+
+                var sector = position.Stock.Setor?.Name;
+                if (sector == null)
+                    continue;
+
+                var sla = result.PercentagePerSectors.FirstOrDefault(x => x.Name == sector);
+                if (sla == null)
+                {
+                    result.PercentagePerSectors.Add(new SectorDto
+                    {
+                        Name = sector,
+                        TotalPrice = position.TotalPrice,
+                        TotalValue = position.Amount * position.Stock.LastPrice,
+                        Positions = [positionDto]
+                    });
+                }
+                else
+                {
+                    sla.TotalPrice += position.TotalPrice;
+                    sla.TotalValue += position.Amount * position.Stock.LastPrice;
+                    sla.Positions.Add(positionDto);
+                }
+            }
+
+            result.TotalCost = totalCost;
+            result.TotalValue = totalValue;
+            result.ResultValue = totalValue - totalCost;
+            if (totalValue == 0)
+                return Ok(result);
+
+            result.ResultPercentage = totalCost != 0 ? decimal.Round((totalValue - totalCost) / totalCost * 100, 2) : 0;
+
+            result.PercentagePerSectors =
+                result.PercentagePerSectors.Select(x =>
+                    {
+                        x.Positions = x.Positions.OrderByDescending(positionDto => positionDto.TotalValue).ToList();
+                        x.Percentage = decimal.Round(x.TotalValue / totalValue * 100, 2);
+                        x.Profit = x.TotalValue - x.TotalPrice;
+                        x.ProfitPctg = decimal.Round(x.Profit / x.TotalPrice * 100, 2);
+                        return x;
+                    })
+                    .OrderByDescending(x => x.Percentage)
+                    .ToList();
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
 }
