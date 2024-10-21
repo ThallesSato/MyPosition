@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
     {
     }
     
+    public DbSet<User> Users { get; set; } 
     public DbSet<Wallet> Wallets { get; set; }
     public DbSet<Stock> Stocks { get; set; }
     public DbSet<Positions> Positions { get; set; }
@@ -29,6 +30,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<StockHistory>()
             .HasIndex(x => new { x.StockId, x.Date })
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(x => x.Email)
             .IsUnique();
     }
 }

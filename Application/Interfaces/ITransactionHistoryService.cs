@@ -5,6 +5,6 @@ namespace Application.Interfaces;
 
 public interface ITransactionHistoryService: IBaseService<TransactionHistory>
 {
-    Task<List<TotalAmount>?> GetTotalAmountByDateAsync(int walletId);
+    Task<List<TotalAmount>> GetTotalAmountByDateAsync(int walletId);
     Task<List<TransactionHistory>> GetAllByWalletIdAsync(int walletId);
 }

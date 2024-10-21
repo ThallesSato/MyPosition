@@ -20,6 +20,7 @@ public static class Initializer
         // Repositories
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ISectorRepository, SectorRepository>();
         services.AddScoped<IWalletRepository, WalletRepository>();
         services.AddScoped<IPositionRepository, PositionRepository>();
@@ -37,6 +38,9 @@ public static class Initializer
         services.AddScoped<IStockHistoryService, StockHistoryService>();
         services.AddScoped<ITransactionHistoryService, TransactionHistoryService>();
         services.AddScoped<IPositionHistoryService, PositionHistoryService>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserService, UserService>();
         
         // External Services
         services.AddScoped<IBovespa, Bovespa>();

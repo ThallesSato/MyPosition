@@ -15,7 +15,7 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
         _context = context.TransactionHistories;
     }
 
-    public async Task<List<TotalAmount>?> GetTotalAmountByDateAsync(int walletId)
+    public async Task<List<TotalAmount>> GetTotalAmountByDateAsync(int walletId)
     {
         return await _context
             .Where(x => x.WalletId == walletId)
@@ -24,7 +24,7 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
             .Select(g => new TotalAmount
             {
                 Date = g.Key,
-                Amount = g.Sum(x => x.EquityEffect)
+                Amount = (decimal)g.Sum(x => (double)x.EquityEffect)
             })
             .ToListAsync();
     }

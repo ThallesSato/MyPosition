@@ -1,4 +1,5 @@
-﻿using Domain.Models;
+﻿using System.Globalization;
+using Domain.Models;
 
 namespace Application.utils;
 
@@ -10,8 +11,9 @@ public static class Utils
         {
             case Periodicity.Monthly:
                 return date.Date.ToString("yyyy/MM");
-            case Periodicity.Annually:
-                return date.Date.ToString("yyyy");
+            case Periodicity.Weekly:
+                date = date.AddDays(((int)DayOfWeek.Friday - (int)date.DayOfWeek + 7) % 7);
+                return date.Date.ToString("yyyy-MM-dd");
             case Periodicity.Daily:
             default:
                 return date.Date.ToString("yyyy-MM-dd");
@@ -25,7 +27,11 @@ public static class Utils
             Periodicity.Monthly => stockHistoryList.GroupBy(sh => new { sh.Date.Year, sh.Date.Month })
                 .Select(g => g.OrderByDescending(sh => sh.Date).First())
                 .ToList(),
-            Periodicity.Annually => stockHistoryList.GroupBy(sh => new { sh.Date.Year })
+            Periodicity.Weekly => stockHistoryList.GroupBy(sh => new 
+                {
+                    sh.Date.Year, 
+                    Week = sh.Date.AddDays(((int)DayOfWeek.Friday - (int)sh.Date.DayOfWeek + 7) % 7)
+                })
                 .Select(g => g.OrderByDescending(sh => sh.Date).First())
                 .ToList(),
             _ => stockHistoryList
