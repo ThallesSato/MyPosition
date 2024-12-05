@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infra.Repositories;
 
-public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, ITransactionHistoryRepository 
+public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, ITransactionHistoryRepository
 {
     private readonly DbSet<TransactionHistory> _context;
-    
+
     public TransactionHistoryRepository(AppDbContext context) : base(context)
     {
         _context = context.TransactionHistories;
@@ -24,7 +24,7 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
             .Select(g => new TotalAmount
             {
                 Date = g.Key,
-                Amount = (decimal)g.Sum(x => (double)x.EquityEffect)
+                Amount = (decimal)g.Sum(x => (double)x.EquityEffect)    
             })
             .ToListAsync();
     }
@@ -34,7 +34,14 @@ public class TransactionHistoryRepository : BaseRepository<TransactionHistory>, 
         return await _context
             .Where(x => x.WalletId == walletId)
             .OrderByDescending(x => x.Date)
-            .ThenByDescending(x=>x.Id)
+            .ThenByDescending(x => x.Id)
             .ToListAsync();
+    }
+
+    public TransactionHistory? GetFirstByWalletIdOrDefault(int walletId)
+    {
+        return _context.Where(x => x.WalletId == walletId)
+            .OrderBy(x => x.Date)
+            .FirstOrDefault();
     }
 }

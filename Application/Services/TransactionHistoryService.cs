@@ -22,4 +22,9 @@ public class TransactionHistoryService : BaseService<TransactionHistory>, ITrans
     {
         return _repository.GetAllByWalletIdAsync(walletId);
     }
+    
+    public TransactionHistory? GetFirstByWalletIdAsync(int walletId)
+    {
+        return _repository.GetFirstByWalletIdOrDefault(walletId);
+    }
 }

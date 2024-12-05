@@ -7,4 +7,5 @@ public interface ITransactionHistoryRepository : IBaseRepository<TransactionHist
 {
     Task<List<TotalAmount>> GetTotalAmountByDateAsync(int walletId);
     Task<List<TransactionHistory>> GetAllByWalletIdAsync(int walletId);
+    TransactionHistory? GetFirstByWalletIdOrDefault(int walletId);
 }

@@ -20,7 +20,7 @@ public class StockService : BaseService<Stock>, IStockService
     public async Task<Stock?> CreateStockAsync(StockApiDto stockApiDto, Sector sector)
     {
         var stock = stockApiDto.Adapt<Stock>();
-        stock.Setor = sector;
+        stock.Sector = sector;
         
         return await _repository.CreateAsync(stock);
     }

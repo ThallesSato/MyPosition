@@ -18,11 +18,21 @@ public class UserRepository : BaseRepository<User>, IUserRepository
         await _context.AddAsync(user);
     }
     
+    
     public async Task<User?> GetUserByEmailAsync(string email)
     {
         return await _context
             .FirstOrDefaultAsync(x => x.Email == email);
     }
+    
+    public async Task<int> GetUserIdByEmailAsync(string email)
+    {
+        return await _context
+            .Where(x => x.Email == email)
+            .Select(x => x.Id)
+            .FirstOrDefaultAsync();
+    }
+    
     public async Task<User?> GetUserByEmailLoadedAsync(string email)
     {
         return await _context

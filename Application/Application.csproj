@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <TargetFramework>net7.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,7 +12,19 @@
 
     <ItemGroup>
       <PackageReference Include="BCrypt.Net" Version="0.1.0" />
-      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.20" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="TESte\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="TESte\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="TESte\**" />
     </ItemGroup>
 
 </Project>

@@ -15,11 +15,11 @@ public sealed class VariationFacade
         _stockHistoryService = stockHistoryService;
     }
 
-    public async Task<SortedDictionary<string, decimal>> VariationAbsoluteAccumulated(DateTime? date, Periodicity periodicity, Wallet wallet)
+    public async Task<SortedDictionary<string, decimal>> VariationAbsoluteAccumulated(DateTime? date, Periodicity periodicity, List<Positions> positionsList)
     {
         var preresult = new SortedDictionary<string, decimal>();
 
-        foreach (var positions in wallet.Positions)
+        foreach (var positions in positionsList)
         {
             var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
             if (positionHistoryList.Count == 0)
@@ -69,11 +69,11 @@ public sealed class VariationFacade
         return result;
     }
 
-    public async Task<SortedDictionary<string, decimal>> VariationAbsolute(DateTime? date, Periodicity periodicity, Wallet wallet)
+    public async Task<SortedDictionary<string, decimal>> VariationAbsolute(DateTime? date, Periodicity periodicity, List<Positions> positionsList)
     {
         var result = new SortedDictionary<string, decimal>();
 
-        foreach (var positions in wallet.Positions)
+        foreach (var positions in positionsList)
         {
             var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
             if (positionHistoryList.Count == 0)
@@ -116,11 +116,11 @@ public sealed class VariationFacade
 
         return result;
     }
-    // public async Task<SortedDictionary<object, decimal>> VariationPercentageAccumulated(DateTime? date, Periodicity periodicity, Wallet wallet)
+    // public async Task<SortedDictionary<object, decimal>> VariationPercentageAccumulated(DateTime? date, Periodicity periodicity, List<Positions> positionsList)
     // {
     //     var preResult = new SortedDictionary<object, (decimal TotalCost ,List<(decimal StockCost,decimal StockVariation)>)>();
     //     
-    //     foreach (var positions in wallet.Positions)
+    //     foreach (var positions in positionsList)
     //     {
     //         var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
     //         if (positionHistoryList.Count == 0)
@@ -179,11 +179,11 @@ public sealed class VariationFacade
     //
     //     return result;
     // }
-    public async Task<SortedDictionary<string, decimal>> VariationPercentage(DateTime? date, Periodicity periodicity, Wallet wallet)
+    public async Task<SortedDictionary<string, decimal>> VariationPercentage(DateTime? date, Periodicity periodicity, List<Positions> positionsList)
     {
         var preResult = new SortedDictionary<string, (decimal TotalLastMonth ,List<(decimal StockLastMonth,decimal StockVariation)>)>();
         
-        foreach (var positions in wallet.Positions)
+        foreach (var positions in positionsList)
         {
             var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
             if (positionHistoryList.Count == 0)
@@ -221,7 +221,9 @@ public sealed class VariationFacade
                     preResult[key] = (value.Item1 += stockOld * qnt, value.Item2);
                 }
                 else
-                    preResult[key] = (stockOld * qnt, [(stockOld * qnt, (stock.Close - stockOld) / stockOld)]);
+                    preResult[key] = (stockOld * qnt,
+                        new List<(decimal StockLastMonth, decimal StockVariation)>
+                            { (stockOld * qnt, (stock.Close - stockOld) / stockOld) });
                 
 
                 stockOld = stock.Close;
@@ -243,19 +245,24 @@ public sealed class VariationFacade
     
     
 // Outro pensamento do acumulado
-    public async Task<SortedDictionary<string, decimal>> VariationPercentageAccumulated(DateTime? date, Periodicity periodicity, Wallet wallet)
+    public async Task<SortedDictionary<string, decimal>> VariationPercentageAccumulated(DateTime? date, Periodicity periodicity, List<Positions> positionsList)
     {
         var preResult = new SortedDictionary<string, (decimal, decimal)>();
         
-        foreach (var positions in wallet.Positions)
+        DateTime firstDate = DateTime.Today;
+        
+        foreach (var positions in positionsList)
         {
             var positionHistoryList = _positionService.GetPositionHistoriesAfterDateAndLast(positions, date);
             if (positionHistoryList.Count == 0)
                 continue;
             
+            var dateTemp = positionHistoryList.First().Date.Date;
+            firstDate = firstDate < dateTemp ? firstDate : dateTemp;
+            
             var stockHistoryList =
                 await _stockHistoryService.GetStockHistoryList(positions.Stock,
-                    date ?? positionHistoryList.First().Date);
+                    date ?? firstDate);
             if (stockHistoryList.Count == 0)
                 continue;
     
@@ -303,7 +310,7 @@ public sealed class VariationFacade
                 result[data] = 0;
                 continue;
             }
-            if (help == 0 && date != null)
+            if (help == 0 && date > firstDate)
                 help = (total - cost) / cost * 100;
             
             result[data] = decimal.Round((total - cost) / cost * 100-help, 2);

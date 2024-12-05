@@ -10,6 +10,7 @@ using Infra.Interfaces;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Api.Controllers;
 
@@ -74,6 +75,33 @@ public class DefaultController : ControllerBase
             return BadRequest(e.Message);
         }
     }
+    
+    [HttpPost("DeleteWallet")]
+    public async Task<IActionResult> DeleteWallet(int id)
+    {
+        try
+        {
+            var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
+            if (claim == null)
+                return Unauthorized();
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
+                return Unauthorized();
+            var wallet = await _walletService.GetByIdOrDefaultAsync(id);
+            if (wallet == null)
+                return NotFound();
+            if (wallet.User.Id != userId)
+                return BadRequest("This wallet is not yours");
+            _walletService.Delete(wallet);
+            await _unitOfWork.SaveChangesAsync();
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return BadRequest(e.Message);
+        }
+    }
 
     [HttpPost("BuyStock")]
     public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
@@ -86,15 +114,15 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
                 return Unauthorized();
             await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(transactionDto.WalletId);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userId)
                 return BadRequest("This wallet is not yours");
 
             transactionDto.Date = transactionDto.Date.Date;
@@ -158,15 +186,15 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
                 return Unauthorized();
             await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(transactionDto.WalletId);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userId)
                 return BadRequest("This wallet is not yours");
 
             transactionDto.Date = transactionDto.Date.Date;
@@ -219,15 +247,15 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
                 return Unauthorized();
             await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(id);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userId)
                 return BadRequest("This wallet is not yours");
 
             return Ok(await _transactionService.GetAllByWalletIdAsync(wallet.Id));
@@ -247,8 +275,8 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
                 return Unauthorized();
             await _stockService.UpdateAllStocksAsync();
 
@@ -259,7 +287,7 @@ public class DefaultController : ControllerBase
             var wallet = await _walletService.GetByIdOrDefaultAsync(transaction.WalletId);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userId)
                 return BadRequest("This wallet is not yours");
 
 
@@ -304,7 +332,6 @@ public class DefaultController : ControllerBase
             if (user == null)
                 return Unauthorized();
 
-            //TODO DOING HOME PAGE CONTROLLER
             var result = user.Wallets.Select(x => new
             {
                 x.Id,
@@ -357,7 +384,7 @@ public class DefaultController : ControllerBase
                     : decimal.Round(wallet.TotalProfit / wallet.TotalCost * 100, 2);
                 userDto.TotalValue += wallet.TotalValue;
                 userDto.TotalCost += wallet.TotalCost;
-                wallet.Positions = [];
+                wallet.Positions = new List<Positions>();
             }
 
             userDto.TotalProfit = userDto.TotalValue - userDto.TotalCost;
@@ -365,7 +392,6 @@ public class DefaultController : ControllerBase
                 ? 0
                 : decimal.Round(userDto.TotalProfit / userDto.TotalCost * 100, 2);
 
-            //TODO DOING HOME PAGE CONTROLLER
             return Ok(userDto);
         }
         catch (Exception e)
@@ -387,15 +413,14 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userId = await _userService.GetUserIdByEmailAsync(claim);
+            if (userId == 0)
                 return Unauthorized();
-            await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(walletId);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userId)
                 return BadRequest("This wallet is not yours");
 
             var totalAmountList = await _transactionService.GetTotalAmountByDateAsync(walletId);
@@ -426,20 +451,20 @@ public class DefaultController : ControllerBase
             {
                 case GraphType.Absolute:
                     cdi = CdiFacade.CdiAbsolute(periodicity, interestsSinceDate, totalAmountList);
-                    variation = await _variationFacade.VariationAbsolute(date, periodicity, wallet);
+                    variation = await _variationFacade.VariationAbsolute(date, periodicity, wallet.Positions);
                     break;
                 case GraphType.AbsoluteAccumulated:
                     cdi = CdiFacade.CdiAbsoluteAccumulated(periodicity, interestsSinceDate, totalAmountList);
-                    variation = await _variationFacade.VariationAbsoluteAccumulated(date, periodicity, wallet);
+                    variation = await _variationFacade.VariationAbsoluteAccumulated(date, periodicity, wallet.Positions);
                     break;
                 case GraphType.Percentage:
                     cdi = CdiFacade.CdiPercentage(periodicity, interestsSinceDate, totalAmountList);
-                    variation = await _variationFacade.VariationPercentage(date, periodicity, wallet);
+                    variation = await _variationFacade.VariationPercentage(date, periodicity, wallet.Positions);
                     break;
                 case GraphType.PercentageAccumulated:
                 default:
                     cdi = CdiFacade.CdiPercentageAccumulated(periodicity, interestsSinceDate, totalAmountList);
-                    variation = await _variationFacade.VariationPercentageAccumulated(date, periodicity, wallet);
+                    variation = await _variationFacade.VariationPercentageAccumulated(date, periodicity, wallet.Positions);
                     break;
             }
 
@@ -478,15 +503,15 @@ public class DefaultController : ControllerBase
             var claim = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Email)?.Value;
             if (claim == null)
                 return Unauthorized();
-            var user = await _userService.GetUserByEmailAsync(claim);
-            if (user == null)
+            var userid = await _userService.GetUserIdByEmailAsync(claim);
+            if (userid == 0)
                 return Unauthorized();
             await _stockService.UpdateAllStocksAsync();
 
             var wallet = await _walletService.GetByIdOrDefaultAsync(id);
             if (wallet == null)
                 return NotFound();
-            if (wallet.User.Id != user.Id)
+            if (wallet.User.Id != userid)
             {
                 return BadRequest("This wallet is not yours");
             }
@@ -513,8 +538,8 @@ public class DefaultController : ControllerBase
                             100, 2)
                 };
 
-                var sector = position.Stock.Setor?.Name;
-                if (sector == null)
+                var sector = position.Stock.Sector.Name;
+                if (sector.IsNullOrEmpty())
                     continue;
 
                 var sla = result.PercentagePerSectors.FirstOrDefault(x => x.Name == sector);
@@ -525,7 +550,7 @@ public class DefaultController : ControllerBase
                         Name = sector,
                         TotalPrice = position.TotalPrice,
                         TotalValue = position.Amount * position.Stock.LastPrice,
-                        Positions = [positionDto]
+                        Positions = new List<PositionDto> { positionDto }
                     });
                 }
                 else

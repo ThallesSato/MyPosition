@@ -16,9 +16,10 @@ public class WalletRepository : BaseRepository<Wallet>, IWalletRepository
     public new async Task<Wallet?> GetByIdOrDefaultAsync(int id)
     {
         return await _context
+            .Include(x=>x.User)
             .Include(w => w.Positions
                 .Where(p=>p.Amount > 0))
-            .ThenInclude(p => p.Stock.Setor)
+            .ThenInclude(p => p.Stock.Sector)
             .Include(w => w.Positions
                 .Where(p=>p.Amount > 0))
             .ThenInclude(p => p.PositionHistories)
