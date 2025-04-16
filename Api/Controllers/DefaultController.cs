@@ -50,7 +50,7 @@ public class DefaultController : ControllerBase
     }
 
     [HttpPost("CreateWallet")]
-    public async Task<IActionResult> CreateWallet(string name)
+    public async Task<ActionResult<Wallet>> CreateWaollet(string name)
     {
         try
         {
@@ -77,7 +77,7 @@ public class DefaultController : ControllerBase
     }
     
     [HttpPost("DeleteWallet")]
-    public async Task<IActionResult> DeleteWallet(int id)
+    public async Task<ActionResult> DeleteWallet(int id)
     {
         try
         {
@@ -104,7 +104,7 @@ public class DefaultController : ControllerBase
     }
 
     [HttpPost("BuyStock")]
-    public async Task<IActionResult> BuyStock(TransactionDto transactionDto)
+    public async Task<ActionResult<Positions>> BuyStock(TransactionDto transactionDto)
     {
         try
         {
@@ -176,7 +176,7 @@ public class DefaultController : ControllerBase
     }
 
     [HttpPost("SellStock")]
-    public async Task<IActionResult> SellStock(TransactionDto transactionDto)
+    public async Task<ActionResult<Positions>> SellStock(TransactionDto transactionDto)
     {
         try
         {
@@ -240,7 +240,7 @@ public class DefaultController : ControllerBase
     }
 
     [HttpGet("TransactionHistory")]
-    public async Task<IActionResult> GetTransactionHistory(int id)
+    public async Task<ActionResult<List<PositionHistory>>> GetTransactionHistory(int id)
     {
         try
         {
@@ -268,7 +268,7 @@ public class DefaultController : ControllerBase
     }
 
     [HttpDelete("DeleteTransaction")]
-    public async Task<IActionResult> DeleteTransaction(int id)
+    public async Task<ActionResult> DeleteTransaction(int id)
     {
         try
         {
@@ -321,7 +321,7 @@ public class DefaultController : ControllerBase
     
     
     [HttpGet("MainMenu")]
-    public async Task<IActionResult> MainMenu()
+    public async Task<ActionResult<MenuDto>> MainMenu()
     {
         try
         {
@@ -332,10 +332,10 @@ public class DefaultController : ControllerBase
             if (user == null)
                 return Unauthorized();
 
-            var result = user.Wallets.Select(x => new
+            var result = user.Wallets.Select(x => new MenuDto
             {
-                x.Id,
-                x.Name
+                Id = x.Id,
+                Name = x.Name
             });
             return Ok(result);
         }
@@ -347,7 +347,7 @@ public class DefaultController : ControllerBase
     }
     
     [HttpGet("HomePage")]
-    public async Task<IActionResult> HomePage()
+    public async Task<ActionResult<UserDto>> HomePage()
     {
         try
         {
@@ -402,7 +402,7 @@ public class DefaultController : ControllerBase
     }
     
     [HttpGet("Chart/Wallet/Cdi")]
-    public async Task<IActionResult> ChartWalletCdi(int walletId, DateTime? date, GraphType graphType,
+    public async Task<ActionResult<ChartCdiDto>> ChartWalletCdi(int walletId, DateTime? date, GraphType graphType,
         Periodicity periodicity)
     {
         try
@@ -468,23 +468,23 @@ public class DefaultController : ControllerBase
                     break;
             }
 
+            if (variation.Count < cdi.Count)
+            {
+                foreach (var cv in cdi.Where(cv => !variation.ContainsKey(cv.Key)))
+                {
+                    cdi.Remove(cv.Key);
+                }
+            }
             if (variation.Count > cdi.Count)
             {
                 variation.Remove(variation.Last().Key);
             }
-            else if (variation.Count < cdi.Count)
-            {
-                foreach (var cv in cdi.Where(cv => !variation.ContainsKey(cv.Key)))
-                {
-                    variation.Add(cv.Key, 0);
-                }
-            }
 
-            var response = new
+            var response = new ChartCdiDto
             {
-                dates = variation.Select(x => x.Key.ToString()).ToList(),
-                variation = variation.Select(x => x.Value).ToList(),
-                cdi = cdi.Select(x => x.Value).ToList()
+                Dates = variation.Select(x => x.Key.ToString()).ToList(),
+                Variation = variation.Select(x => x.Value).ToList(),
+                Cdi = cdi.Select(x => x.Value).ToList()
             };
             return Ok(response);
         }
@@ -496,7 +496,7 @@ public class DefaultController : ControllerBase
     }
     
     [HttpGet("Sectors")]
-    public async Task<IActionResult> Sectors(int id)
+    public async Task<ActionResult<TotalDto>> Sectors(int id)
     {
         try
         {

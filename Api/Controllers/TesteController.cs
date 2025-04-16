@@ -54,7 +54,7 @@ public class TesteController : ControllerBase
 
 
     [HttpGet("Chart/Wallet/Sectors")]
-    public async Task<IActionResult> ChartWalletSectors(int walletId, DateTime? date, GraphType graphType,
+    public async Task<ActionResult<List<ChartDto>>> ChartWalletSectors(int walletId, DateTime? date, GraphType graphType,
         Periodicity periodicity)
     {
         try

@@ -85,7 +85,7 @@ public sealed class VariationFacade
             if (stockHistoryList.Count == 0)
                 continue;
             var referenceDate = date?.Date ?? positionHistoryList.First().Date.Date.AddDays(-1);
-            var stockOld = stockHistoryList.Last(x => x.Date.Date < referenceDate).Close;
+            var stockOld = stockHistoryList.Last(x => x.Date.Date <= referenceDate).Close;
 
 
             stockHistoryList = Utils.PeriodicityListAndFiltered(periodicity, stockHistoryList, date);
@@ -196,7 +196,7 @@ public sealed class VariationFacade
                 continue;
             
             var referenceDate = date?.Date ?? positionHistoryList.First().Date.Date.AddDays(-1);
-            var stockOld = stockHistoryList.Last(x => x.Date.Date < referenceDate).Close;
+            var stockOld = stockHistoryList.Last(x => x.Date.Date <= referenceDate.Date).Close;
 
             stockHistoryList = Utils.PeriodicityListAndFiltered(periodicity, stockHistoryList, date);
 
